@@ -4,7 +4,7 @@ class SlurmEndpoints:
     def __init__(self, base_url: str):
         """Initialize endpoints with base URL"""
         self.base_url = base_url.rstrip('/')
-        self.api_version = 'v0.0.38'  # Update this based on your Slurm version
+        self.api_version = 'v0.0.42'  # Update this based on your Slurm version
         
     @property
     def base_api_url(self) -> str:

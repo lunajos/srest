@@ -106,6 +106,48 @@ MOCK_ACCOUNTS = {
     }
 }
 
+MOCK_LICENSES = {
+    "matlab": {
+        "name": "matlab",
+        "total": 50,
+        "used": 25,
+        "remote": False
+    },
+    "ansys": {
+        "name": "ansys",
+        "total": 100,
+        "used": 75,
+        "remote": True
+    },
+    "cuda": {
+        "name": "cuda",
+        "total": 200,
+        "used": 150,
+        "remote": False
+    }
+}
+
+MOCK_MCS_LABELS = {
+    "confidential": {
+        "name": "confidential",
+        "type": "security",
+        "priority": 100,
+        "allowed_accounts": ["research", "engineering"]
+    },
+    "test": {
+        "name": "test",
+        "type": "testing",
+        "priority": 50,
+        "allowed_accounts": ["test"]
+    },
+    "public": {
+        "name": "public",
+        "type": "security",
+        "priority": 0,
+        "allowed_accounts": ["*"]
+    }
+}
+
 MOCK_JOB_ID = 1004
 
 class MockSlurmHandler(BaseHTTPRequestHandler):
@@ -114,7 +156,7 @@ class MockSlurmHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Handle GET requests"""
         logger.info(f"Received GET request: {self.path}")
-        if self.path.startswith('/slurm/v0.0.37/job/'):
+        if self.path.startswith('/slurm/v0.0.38/job/'):
             job_id = self.path.split('/')[-1]
             if job_id in MOCK_JOBS:
                 response = MOCK_JOBS[job_id].copy()
@@ -130,13 +172,39 @@ class MockSlurmHandler(BaseHTTPRequestHandler):
             else:
                 logger.warning(f"Job not found: {job_id}")
                 self._send_error("Job not found")
-        elif self.path == '/slurm/v0.0.37/jobs':
+        elif self.path == '/slurm/v0.0.38/jobs':
             logger.debug("Returning list of all jobs")
             self._send_json({"jobs": list(MOCK_JOBS.values())})
-        elif self.path == '/slurm/v0.0.37/accounts':
+        elif self.path == '/slurm/v0.0.38/licenses':
+            logger.debug("Returning list of all licenses")
+            self._send_json({"licenses": list(MOCK_LICENSES.values())})
+        elif self.path.startswith('/slurm/v0.0.38/license/'):
+            license_name = self.path.split('/')[-1]
+            if license_name in MOCK_LICENSES:
+                logger.debug(f"Returning license details for {license_name}")
+                self._send_json(MOCK_LICENSES[license_name])
+            else:
+                logger.warning(f"License not found: {license_name}")
+                self._send_error("License not found")
+        elif self.path == '/slurm/v0.0.38/mcs/labels':
+            type_filter = self.path.split('?type=')[-1] if '?type=' in self.path else None
+            labels = list(MOCK_MCS_LABELS.values())
+            if type_filter:
+                labels = [l for l in labels if l['type'] == type_filter]
+            logger.debug(f"Returning MCS labels with type filter: {type_filter}")
+            self._send_json({"labels": labels})
+        elif self.path.startswith('/slurm/v0.0.38/mcs/'):
+            label_name = self.path.split('/')[-1]
+            if label_name in MOCK_MCS_LABELS:
+                logger.debug(f"Returning MCS label details for {label_name}")
+                self._send_json(MOCK_MCS_LABELS[label_name])
+            else:
+                logger.warning(f"MCS label not found: {label_name}")
+                self._send_error("MCS label not found")
+        elif self.path == '/slurm/v0.0.38/accounts':
             logger.debug("Returning list of all accounts")
             self._send_json({"accounts": list(MOCK_ACCOUNTS.values())})
-        elif self.path.startswith('/slurm/v0.0.37/account/'):
+        elif self.path.startswith('/slurm/v0.0.38/account/'):
             account_name = self.path.split('/')[-1]
             if account_name in MOCK_ACCOUNTS:
                 logger.debug(f"Returning account details for {account_name}")
@@ -151,7 +219,7 @@ class MockSlurmHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Handle POST requests"""
         logger.info(f"Received POST request: {self.path}")
-        if self.path == '/slurm/v0.0.37/job/submit':
+        if self.path == '/slurm/v0.0.38/job/submit':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             job_data = json.loads(post_data)
@@ -237,7 +305,7 @@ class MockSlurmHandler(BaseHTTPRequestHandler):
                 logger.error(f"Error creating job: {e}")
                 self._send_error(f"Failed to create job: {str(e)}")
                 return
-        elif self.path.startswith('/slurm/v0.0.37/job/') and self.path.endswith('/cancel'):
+        elif self.path.startswith('/slurm/v0.0.38/job/') and self.path.endswith('/cancel'):
             job_id = self.path.split('/')[-2]
             if job_id in MOCK_JOBS:
                 MOCK_JOBS[job_id]['job_state'] = 'CANCELLED'

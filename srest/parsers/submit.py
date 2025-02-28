@@ -29,24 +29,46 @@ class SlurmDirectiveParser:
     
     # Mapping of #SBATCH arguments to REST API parameters
     DIRECTIVE_MAP = {
+        # Basic job settings
+        "job_name": "name",
+        "name": "name",
         "nodes": "nodes",
         "ntasks": "ntasks",
         "cpus_per_task": "cpus_per_task",
         "partition": "partition",
         "time": "time",
-        "name": "name",
         "array": "array",
+        
+        # Memory settings
         "mem": "mem",
         "mem_per_cpu": "mem_per_cpu",
+        
+        # Account and QoS
         "account": "account",
         "qos": "qos",
+        
+        # Dependencies and constraints
         "dependency": "dependency",
-        "mail_type": "mail_type",
-        "mail_user": "mail_user",
         "nodelist": "nodelist",
         "exclude": "exclude",
         "constraint": "constraint",
-        "mcs_label": "mcs_label"
+        
+        # Email notifications
+        "mail_type": "mail_type",
+        "mail_user": "mail_user",
+        
+        # MCS settings
+        "mcs_label": "mcs_label",
+        
+        # Output settings
+        "output": "stdout",
+        "error": "stderr",
+        
+        # Additional settings
+        "licenses": "licenses",
+        "gres": "gres",
+        "exclusive": "exclusive",
+        "oversubscribe": "oversubscribe"
     }
     
     # Time format conversion
@@ -77,15 +99,15 @@ class SlurmDirectiveParser:
                 continue
                 
             if line.startswith('#SBATCH'):
-                # Parse directive
-                directive = line[7:].strip()
-                logger.debug(f"Processing directive on line {line_num}: {directive}")
-                
                 # Skip commented out directives
-                if line.startswith('##SBATCH'):
+                if line.startswith('##'):
                     logger.debug(f"Skipping commented out directive: {line}")
                     script_lines.append(line)
                     continue
+                
+                # Parse directive
+                directive = line[7:].strip()
+                logger.debug(f"Processing directive on line {line_num}: {directive}")
                 
                 if '=' in directive:
                     key, value = directive.split('=', 1)
@@ -99,7 +121,13 @@ class SlurmDirectiveParser:
                     value = parts[1].strip() if len(parts) > 1 else None
                     logger.debug(f"Found space-separated directive: {key} {value}")
                 
-                directives[key] = value
+                # Map directive to REST API parameter
+                api_key = SlurmDirectiveParser.DIRECTIVE_MAP.get(key)
+                if api_key:
+                    directives[api_key] = value
+                    logger.debug(f"Mapped directive {key} to API parameter {api_key}")
+                else:
+                    logger.warning(f"Unknown directive {key}, skipping")
             else:
                 script_lines.append(line)
                 logger.debug(f"Keeping script line: {line}")

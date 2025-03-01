@@ -10,15 +10,12 @@ from ..parsers.submit import SlurmDirectiveParser
 # Set up logging
 log_dir = os.path.expanduser("~/develop/srest/logs")
 os.makedirs(log_dir, exist_ok=True)
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(os.path.join(log_dir, 'mock_server.log')),
-        logging.StreamHandler()
-    ]
-)
+
+# Get the root logger and set up file handler
 logger = logging.getLogger(__name__)
+file_handler = logging.FileHandler(os.path.join(log_dir, 'mock_server.log'))
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
 
 # Mock data
 MOCK_JOBS = {

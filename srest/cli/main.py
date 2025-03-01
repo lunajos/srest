@@ -1,10 +1,19 @@
 """Main CLI entry point"""
 import click
+import logging
+import warnings
+import urllib3
 from .commands import (
     jobs_group, nodes_group, partitions_group, reservations_group,
     licenses_group, diag_group, accounts_group, mcs_group,
     config_group, auth_group
 )
+
+# Disable urllib3 warnings about LibreSSL
+warnings.filterwarnings('ignore', category=urllib3.exceptions.NotOpenSSLWarning)
+
+# Configure logging
+logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 def get_completion_script():
     """Get the completion script for the current shell"""
@@ -74,9 +83,11 @@ complete -F _srest_completion srest
 
 @click.group()
 @click.version_option()
-def cli():
+@click.option('--debug/--no-debug', default=False, help='Enable debug logging')
+def cli(debug):
     """Slurm REST API client"""
-    pass
+    log_level = logging.DEBUG if debug else logging.WARNING
+    logging.basicConfig(level=log_level, format='%(message)s')
 
 @cli.command()
 @click.argument('shell', type=click.Choice(['bash', 'zsh']), required=False)

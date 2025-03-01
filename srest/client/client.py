@@ -1,10 +1,15 @@
 import os
 from typing import Dict, Any, Optional, List, Union
 from dataclasses import dataclass
+import warnings
+import urllib3
 import requests
 from .endpoints import SlurmEndpoints
 from ..config import Config
 from ..auth.keycloak import KeycloakAuth
+
+# Disable urllib3 warnings about LibreSSL
+warnings.filterwarnings('ignore', category=urllib3.exceptions.NotOpenSSLWarning)
 
 @dataclass
 class SlurmError(Exception):
@@ -21,17 +26,16 @@ def get_client() -> 'SlurmClient':
     if not base_url:
         raise ValueError("Slurm REST API URL not configured. Run 'srest config set slurm.url <url>'")
     
-    # Get auth token
-    auth = KeycloakAuth(
-        server_url=config.get('auth.server_url'),
-        realm=config.get('auth.realm'),
-        client_id=config.get('auth.client_id')
-    )
-    token = auth.get_token()
-    if not token:
+    # Get auth token from file
+    token_file = os.path.expanduser("~/.config/srest/token.json")
+    if not os.path.exists(token_file):
         raise ValueError("Not logged in. Run 'srest auth login' first")
-    
-    return SlurmClient(base_url=base_url, token=token)
+        
+    with open(token_file, 'r') as f:
+        import json
+        token_data = json.load(f)
+        
+    return SlurmClient(base_url=base_url, token=token_data['access_token'])
     
 class SlurmClient:
     """Client for interacting with Slurm REST API"""

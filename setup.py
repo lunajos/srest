@@ -18,7 +18,7 @@ setup(
         ],
     },
     author="Jose Luna",
-    author_email="jluna@tacc.utexas.edu",
+    author_email="jose@lunajos.com",
     description="A comprehensive Slurm REST API client",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

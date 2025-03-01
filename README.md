@@ -375,6 +375,29 @@ export SLURM_REST_AUTH_CLIENT_ID=myclient
 srest jobs list
 ```
 
+## Distribution
+
+### Build RPM
+
+```bash
+# Install RPM build tools
+sudo yum install rpm-build python3-rpm-macros
+
+# Create RPM build directories
+mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+
+# Create source distribution
+python setup.py sdist
+cp dist/slurmrest-0.1.0.tar.gz ~/rpmbuild/SOURCES/
+
+# Copy spec file
+cp slurmrest.spec ~/rpmbuild/SPECS/
+
+# Build RPM
+rpmbuild -ba ~/rpmbuild/SPECS/slurmrest.spec
+
+```
+
 ## Development
 
 ### Running Tests
@@ -398,4 +421,3 @@ pytest --cov=src
 6. Submit a pull request
 
 ## License
-MIT License

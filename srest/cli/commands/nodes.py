@@ -16,7 +16,7 @@ def nodes_group():
               default=OutputFormat.BASIC.value, help='Output format')
 def list_nodes(state: str, partition: str, format: str):
     """List compute nodes"""
-    client = get_client()
+    client = get_client().node
     
     # Build filters
     filters = {}
@@ -26,25 +26,24 @@ def list_nodes(state: str, partition: str, format: str):
         filters['partition'] = partition
     
     try:
-        result = client.list_nodes(**filters)
+        result = client.get_nodes()
         if format == OutputFormat.JSON.value:
-            click.echo(json.dumps(result, indent=2))
+            click.echo(json.dumps(result.to_dict(), indent=2))
         else:
-            nodes = result.get('nodes', [])
+            nodes = result.nodes or []
             if not nodes:
                 click.echo("No nodes found")
                 return
                 
-            headers = ['NODENAME', 'STATE', 'CPUS', 'MEMORY', 'PARTITIONS']
+            headers = ['NODENAME', 'STATE', 'CPUS', 'MEMORY']
             rows = []
             
             for node in nodes:
                 rows.append([
-                    node.get('name', ''),
-                    ','.join(node.get('state', [])),
-                    str(node.get('cpus', 0)),
-                    format_memory(node.get('real_memory', 0) * 1024 * 1024),  # Convert MB to bytes
-                    ','.join(node.get('partitions', []))
+                    node.name or '',
+                    node.state or '',
+                    str(node.cpus or 0),
+                    format_memory((node.real_memory or 0) * 1024 * 1024)  # Convert MB to bytes
                 ])
             
             print_table(headers, rows)

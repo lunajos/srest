@@ -1,5 +1,6 @@
 import os
-from typing import Dict, Any, Optional, List, Union
+import subprocess
+from typing import Dict, Any, Optional, List, Union, Tuple
 from dataclasses import dataclass
 import warnings
 import urllib3
@@ -7,6 +8,8 @@ import requests
 from .endpoints import SlurmEndpoints
 from ..config import Config
 from ..auth.keycloak import KeycloakAuth
+from ..auth.status import AuthStatus
+from ..utils.version import parse_slurm_version, get_compatible_api_version, verify_api_endpoint
 
 # Disable urllib3 warnings about LibreSSL
 warnings.filterwarnings('ignore', category=urllib3.exceptions.NotOpenSSLWarning)
@@ -17,40 +20,64 @@ class SlurmError(Exception):
     message: str
     error_code: Optional[int] = None
 
+def get_slurm_version() -> Tuple[int, int, int]:
+    """Get installed Slurm version."""
+    try:
+        result = subprocess.run(['sinfo', '--version'], 
+                              capture_output=True, 
+                              text=True, 
+                              check=True)
+        return parse_slurm_version(result.stdout.strip())
+    except (subprocess.SubprocessError, ValueError) as e:
+        raise RuntimeError(f"Failed to get Slurm version: {e}")
+
 def get_client() -> 'SlurmClient':
-    """Get configured client instance"""
+    """Get configured client instance with version checking."""
     config = Config()
+    auth_status = AuthStatus()
     
-    # Get base URL
+    # Check login status
+    if not auth_status.is_logged_in():
+        raise ValueError("Not logged in. Run 'srest auth login' first")
+    
+    # Get base URL and token
     base_url = config.get('slurm.url')
     if not base_url:
         raise ValueError("Slurm REST API URL not configured. Run 'srest config set slurm.url <url>'")
     
-    # Get auth token from file
-    token_file = os.path.expanduser("~/.config/srest/token.json")
-    if not os.path.exists(token_file):
-        raise ValueError("Not logged in. Run 'srest auth login' first")
-        
-    with open(token_file, 'r') as f:
-        import json
-        token_data = json.load(f)
-        
-    return SlurmClient(base_url=base_url, token=token_data['access_token'])
+    token = auth_status.get_token()
+    
+    # Get and verify API version
+    slurm_version = get_slurm_version()
+    api_version = config.get('slurm.api_version')
+    
+    if not api_version:
+        api_version = get_compatible_api_version(slurm_version)
+        config.set('slurm.api_version', api_version)
+    
+    # Verify API endpoint
+    if not verify_api_endpoint(base_url, api_version):
+        raise ValueError(f"API endpoint not accessible with version {api_version}")
+    
+    return SlurmClient(base_url=base_url, token=token, api_version=api_version)
     
 class SlurmClient:
     """Client for interacting with Slurm REST API"""
     
-    def __init__(self, base_url: Optional[str] = None, token: Optional[str] = None):
-        """Initialize Slurm REST client"""
+    def __init__(self, base_url: str, token: str, api_version: str):
+        """Initialize Slurm REST client with version support"""
         self.base_url = base_url
-        if not self.base_url:
-            raise ValueError("base_url is required")
-            
         self.token = token
-        if not self.token:
-            raise ValueError("token is required")
+        self.api_version = api_version
+        
+        if not all([self.base_url, self.token, self.api_version]):
+            raise ValueError("base_url, token, and api_version are required")
             
-        self.endpoints = SlurmEndpoints(self.base_url)
+        # Validate API version format
+        if not self.api_version.startswith('v'):
+            raise ValueError(f"Invalid API version format: {self.api_version}")
+            
+        self.endpoints = SlurmEndpoints(self.base_url, self.api_version)
         self.session = requests.Session()
         self.session.headers.update({
             'X-SLURM-USER-TOKEN': self.token,

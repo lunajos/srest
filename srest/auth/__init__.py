@@ -9,8 +9,8 @@ from ..config import Config
 TOKEN_DIR = os.path.expanduser("~/.config/srest")
 TOKEN_FILE = os.path.join(TOKEN_DIR, "token.json")
 
-def login(username: str, password: str):
-    """Login and save token"""
+def login(username: str, password: str) -> Dict[str, Any]:
+    """Login and save token. Returns token information dictionary."""
     config = Config()
     
     # Get auth server URL
@@ -55,6 +55,12 @@ def login(username: str, password: str):
     os.makedirs(TOKEN_DIR, exist_ok=True)
     with open(TOKEN_FILE, 'w') as f:
         json.dump(token, f, indent=2)
+        
+    return {
+        "token": token['access_token'],
+        "expires": token['expires_at'],
+        "claims": jwt.decode(token['access_token'], options={"verify_signature": False})
+    }
 
 def logout():
     """Logout and clear token"""
@@ -69,7 +75,7 @@ def get_token_info() -> Dict[str, Any]:
     with open(TOKEN_FILE, 'r') as f:
         token = json.load(f)
     
-    # Parse JWT claims
+    # Parse JWT claims if not already decoded
     try:
         claims = jwt.decode(token['access_token'], options={"verify_signature": False})
     except jwt.InvalidTokenError:
@@ -77,7 +83,7 @@ def get_token_info() -> Dict[str, Any]:
     
     return {
         "token": token['access_token'],
-        "expires": token['expires_in'],
+        "expires": token.get('expires_at', token.get('expires_in')),
         "claims": claims
     }
 

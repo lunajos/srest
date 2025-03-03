@@ -16,7 +16,7 @@ def nodes_group():
               default=OutputFormat.BASIC.value, help='Output format')
 def list_nodes(state: str, partition: str, format: str):
     """List compute nodes"""
-    client = get_client().node
+    # Client initialization moved to try block
     
     # Build filters
     filters = {}
@@ -26,6 +26,14 @@ def list_nodes(state: str, partition: str, format: str):
         filters['partition'] = partition
     
     try:
+        try:
+            client = get_client().node
+        except ValueError as e:
+            if "Not logged in" in str(e):
+                click.echo("Session expired. Please run 'srest auth login' to log in again.")
+                return
+            raise click.ClickException(str(e))
+
         result = client.get_nodes()
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(result.to_dict(), indent=2))
@@ -48,4 +56,7 @@ def list_nodes(state: str, partition: str, format: str):
             
             print_table(headers, rows)
     except Exception as e:
+        if hasattr(e, 'status') and e.status == 401:
+            click.echo("Session expired. Please run 'srest auth login' to log in again.")
+            return
         raise click.ClickException(str(e))

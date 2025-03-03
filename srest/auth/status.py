@@ -31,13 +31,14 @@ class AuthStatus:
         except (json.JSONDecodeError, FileNotFoundError):
             return {}
             
-    def update_login(self, token: str, expires_at: datetime):
+    def update_login(self, token: str, expires_at: datetime, username: Optional[str] = None):
         """Update login status with new token information."""
         status = self._load_status()
         status.update({
             'token': token,
             'expires_at': expires_at.isoformat(),
-            'last_login': datetime.now().isoformat()
+            'last_login': datetime.now().isoformat(),
+            'username': username or os.getenv('USER')
         })
         self._save_status(status)
         
@@ -62,3 +63,9 @@ class AuthStatus:
         if not self.is_logged_in():
             return None
         return self._load_status().get('token')
+        
+    def get_username(self) -> Optional[str]:
+        """Get current username if logged in."""
+        if not self.is_logged_in():
+            return None
+        return self._load_status().get('username') or os.getenv('USER')

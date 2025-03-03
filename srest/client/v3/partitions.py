@@ -25,7 +25,7 @@ class PartitionClient(BaseClient):
             # TODO: Implement curl command generation
             raise NotImplementedError("Curl command generation not yet implemented")
             
-        return self.slurm_api.slurm_v0036_partitions_get(partition_name)
+        return self.slurm_api.slurmctld_get_partitions()
         
     def get_partition(
         self,
@@ -45,4 +45,4 @@ class PartitionClient(BaseClient):
             # TODO: Implement curl command generation
             raise NotImplementedError("Curl command generation not yet implemented")
             
-        return self.slurm_api.slurm_v0036_partition_get(partition_name)
+        return self.slurm_api.slurmctld_get_partition(partition_name)

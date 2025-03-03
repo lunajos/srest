@@ -54,12 +54,25 @@ class JobSubmitRequest:
 @dataclass
 class JobSubmitResponse:
     """Response structure for job submission"""
-    meta: SlurmMeta
-    job_id: int
+    meta: Optional[SlurmMeta] = None
+    job_id: Optional[int] = None
     step_id: Optional[str] = None
     job_submit_user_msg: Optional[str] = None
     errors: Optional[List[Dict[str, Any]]] = None
     warnings: Optional[List[Dict[str, Any]]] = None
+    
+    def __init__(self, **data):
+        # Convert meta if present
+        meta_data = data.pop('meta', None)
+        if meta_data:
+            self.meta = SlurmMeta(**meta_data)
+        
+        # Set other fields
+        self.job_id = data.get('job_id')
+        self.step_id = data.get('step_id')
+        self.job_submit_user_msg = data.get('job_submit_user_msg')
+        self.errors = data.get('errors')
+        self.warnings = data.get('warnings')
 
 @dataclass
 class JobInfo:

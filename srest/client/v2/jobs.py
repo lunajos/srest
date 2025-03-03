@@ -1,4 +1,5 @@
 """Job submission and management client"""
+import json
 from typing import Dict, Any, Optional, Union, List
 from .base import BaseClient
 from .models import (
@@ -27,16 +28,68 @@ class JobClient(BaseClient):
         Returns:
             JobSubmitResponse or curl command if return_curl=True
         """
-        payload = JobSubmitRequest(
-            script=script,
-            job=params
-        )
+        # Create job submission request
+        job_params = params or {}
         
+        # Parse SBATCH directives from script
+        script_lines = []
+        for line in script.split('\n'):
+            if line.startswith('#SBATCH'):
+                try:
+                    # Extract directive and value
+                    parts = line.split(None, 2)
+                    if len(parts) < 2:
+                        continue
+                        
+                    flag = parts[1].strip()
+                    value = parts[2].strip() if len(parts) > 2 else None
+                    
+                    # Convert known parameters
+                    if flag == '-J':
+                        job_params['name'] = value
+                    elif flag == '-N':
+                        job_params['nodes'] = value
+                    elif flag == '-n':
+                        job_params['ntasks'] = int(value)
+                    elif flag == '-p':
+                        job_params['partition'] = value
+                except Exception as e:
+                    print(f'Warning: Failed to parse directive {line}: {e}')
+            script_lines.append(line)
+        
+        # Convert mail_type from string to list of valid flags
+        if 'mail_type' in job_params:
+            if job_params['mail_type'] == ['ALL']:
+                job_params['mail_type'] = ['MAIL_BEGIN', 'MAIL_END', 'MAIL_FAIL', 'MAIL_REQUEUE']
+        
+        # Handle node specifications
+        if 'req_nodes' in job_params:
+            # Keep as original string format
+            job_params['nodes'] = job_params.pop('req_nodes')
+        if 'exc_nodes' in job_params:
+            # Keep as original string format for excluded nodes
+            job_params['exclude_nodes'] = job_params.pop('exc_nodes')
+            
+        # Remove problematic parameters
+        job_params.pop('tres_per_job', None)
+            
+        # Ensure Unix line endings
+        script_content = '\n'.join(line.rstrip('\r') for line in script_lines)
+        
+        payload = {
+            'job': job_params,
+            'script': script_content
+        }
+        
+        # Debug log
+        print("Job submission payload:")
+        print(json.dumps(payload, indent=2))
+            
         return self._make_request(
             method='POST',
             endpoint='/job/submit',
             response_type=JobSubmitResponse,
-            json=payload.__dict__,
+            json=payload,
             return_curl=return_curl
         )
     

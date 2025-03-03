@@ -1,15 +1,24 @@
 """Base client for Slurm REST API"""
 import json
+import os
 from typing import Dict, Any, Optional, Union, Type, TypeVar
 from dataclasses import dataclass
 import requests
 from urllib.parse import urljoin
 import urllib3
+from urllib3.exceptions import InsecureRequestWarning
+from urllib3.util import response
 
 from .models import SlurmError, SlurmResponse
 
-# Disable urllib3 warnings about LibreSSL
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# Patch urllib3's header parsing to be more lenient
+def _patched_assert_header_parsing(headers):
+    return headers
+
+response.assert_header_parsing = _patched_assert_header_parsing
+
+# Disable urllib3 warnings
+urllib3.disable_warnings(InsecureRequestWarning)
 
 T = TypeVar('T', bound=SlurmResponse)
 
@@ -51,8 +60,16 @@ class BaseClient:
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Connection': 'keep-alive'  # Add this to prevent connection close issues
+            'Connection': 'close',  # Use close to avoid keep-alive issues
         }
+        
+        # Get token from auth status
+        from ...auth.status import AuthStatus
+        auth_status = AuthStatus()
+        if auth_status.is_logged_in():
+            token = auth_status.get_token()
+            if token:
+                headers['X-SLURM-USER-TOKEN'] = token
         
         if self.config.username and self.config.token:
             # Method 1: Username + Token
@@ -146,17 +163,20 @@ class BaseClient:
                 return response_type()
             
             # Check for API-level errors in JSON response
-            if 'error' in data:
-                error = data['error']
+            if response.status_code >= 400:
+                error_msg = data.get('error', {}).get('message', response.text)
                 raise SlurmError(
-                    error_code=error.get('error_code'),
-                    message=error.get('message', str(error))
+                    error_code=response.status_code,
+                    message=error_msg
                 )
             
             # Create response object
             try:
                 return response_type(**data)
-            except TypeError as e:
+            except (TypeError, KeyError) as e:
+                # Return empty response if we got a 200 but invalid data
+                if response.status_code == 200:
+                    return response_type()
                 raise SlurmError(
                     error_code=None,
                     message=f"Invalid response format: {str(e)}"

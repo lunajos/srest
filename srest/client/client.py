@@ -85,49 +85,120 @@ class SlurmClient:
             'Accept': 'application/json'
         })
     
-    def _make_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
+    def _make_request(self, method: str, endpoint: str, return_curl: bool = False, **kwargs) -> Union[Dict[str, Any], str]:
         """Make HTTP request to Slurm REST API"""
+        # Generate curl command if requested
+        if return_curl:
+            curl_parts = [f"curl -X {method}"]
+            
+            # Add headers
+            for header, value in self.session.headers.items():
+                curl_parts.append(f"-H '{header}: {value}'")
+            
+            # Add request body if present
+            if 'json' in kwargs:
+                curl_parts.append(f"-d '{json.dumps(kwargs['json'])}'")
+            
+            # Add URL
+            curl_parts.append(f"'{endpoint}'")
+            
+            return ' \
+  '.join(curl_parts)
+        
         try:
             response = self.session.request(method, endpoint, **kwargs)
             response.raise_for_status()
-            return response.json()
+            if response.content:  # Only try to parse JSON if there's content
+                return response.json()
+            return {}
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None:
+                try:
+                    if e.response.content:  # Only try to parse JSON if there's content
+                        error_data = e.response.json()
+                        error_msg = error_data.get('error', {}).get('message', str(e))
+                        error_code = error_data.get('error', {}).get('error_code')
+                        raise SlurmError(error_msg, error_code) from e
+                except (ValueError, KeyError):
+                    # Handle case where response isn't JSON
+                    error_text = e.response.text if e.response.text else str(e)
+                    raise SlurmError(error_text) from e
+            raise SlurmError(str(e)) from e
+        except requests.exceptions.RequestException as e:
+            raise SlurmError(f"Request failed: {str(e)}") from e
+    
+    def submit_job(self, script_content: str, params: Dict[str, Any], return_curl: bool = False) -> Union[Dict[str, Any], str]:
+        """Submit a job to Slurm"""
+        # Clean and validate parameters
+        clean_params = {}
+        
+        # Handle array jobs
+        if 'array' in params:
+            array_spec = params['array']
+            if self._validate_array_spec(array_spec):
+                clean_params['array'] = array_spec
+        
+        # Handle dependencies
+        if 'dependency' in params:
+            dep_spec = params['dependency']
+            clean_params['dependency'] = self._format_dependency_spec(dep_spec)
+        
+        # Handle time format
+        if 'time' in params:
+            time_val = params['time']
+            if isinstance(time_val, str) and '-' in time_val:
+                # Convert days-hours:minutes:seconds to minutes
+                parts = time_val.split('-')
+                days = int(parts[0])
+                time_parts = parts[1].split(':')
+                hours = int(time_parts[0])
+                minutes = int(time_parts[1]) if len(time_parts) > 1 else 0
+                clean_params['time_limit'] = days * 24 * 60 + hours * 60 + minutes
+            else:
+                clean_params['time_limit'] = int(time_val)
+        
+        # Map parameter names to Slurm REST API expected names
+        param_mapping = {
+            'name': 'job_name',
+            'nodes': 'nodes',
+            'ntasks': 'tasks',
+            'cpus-per-task': 'cpus_per_task',
+            'mem': 'memory',
+            'partition': 'partition',
+            'account': 'account',
+            'qos': 'qos',
+            'mcs-label': 'mcs_label'
+        }
+        
+        # Copy validated parameters
+        for key, value in params.items():
+            if key in param_mapping and value is not None:
+                clean_params[param_mapping[key]] = value
+        
+        # Prepare the job submission payload
+        payload = {
+            "script": script_content,
+        }
+        
+        if clean_params:
+            payload['job'] = clean_params
+        
+        try:
+            return self._make_request('POST', self.endpoints.job_submit, json=payload, return_curl=return_curl)
         except requests.exceptions.HTTPError as e:
             if e.response is not None:
                 try:
                     error_data = e.response.json()
                     error_msg = error_data.get('error', {}).get('message', str(e))
                     error_code = error_data.get('error', {}).get('error_code')
-                    raise SlurmError(error_msg, error_code) from e
+                    raise SlurmError(f"Job submission failed: {error_msg}", error_code) from e
                 except (ValueError, KeyError):
-                    raise SlurmError(str(e)) from e
-            raise SlurmError(str(e)) from e
+                    # Handle case where response isn't JSON
+                    error_text = e.response.text if e.response.text else str(e)
+                    raise SlurmError(f"Job submission failed: {error_text}") from e
+            raise SlurmError(f"Job submission failed: {str(e)}") from e
         except requests.exceptions.RequestException as e:
             raise SlurmError(f"Request failed: {str(e)}") from e
-    
-    def submit_job(self, script_content: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Submit a job to Slurm"""
-        # Handle array jobs
-        if 'array' in params:
-            array_spec = params['array']
-            # Validate array spec format (e.g., "1-10:2")
-            if not self._validate_array_spec(array_spec):
-                raise ValueError(f"Invalid array specification: {array_spec}")
-        
-        # Handle dependencies
-        if 'dependency' in params:
-            dep_spec = params['dependency']
-            # Validate and format dependency spec
-            params['dependency'] = self._format_dependency_spec(dep_spec)
-            
-        # Convert mcs-label to mcs_label if present
-        if 'mcs-label' in params:
-            params['mcs_label'] = params.pop('mcs-label')
-        
-        payload = {
-            "script": script_content,
-            **params
-        }
-        return self._make_request('POST', self.endpoints.jobs, json=payload)
     
     def list_jobs(self, **params) -> Dict[str, Any]:
         """List jobs with optional filters"""

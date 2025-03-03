@@ -41,9 +41,9 @@ def list_nodes(state: str, partition: str, format: str):
             for node in nodes:
                 rows.append([
                     node.get('name', ''),
-                    node.get('state', ''),
-                    str(node.get('cpus', '')),
-                    format_memory(node.get('real_memory', 0)),
+                    ','.join(node.get('state', [])),
+                    str(node.get('cpus', 0)),
+                    format_memory(node.get('real_memory', 0) * 1024 * 1024),  # Convert MB to bytes
                     ','.join(node.get('partitions', []))
                 ])
             

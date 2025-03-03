@@ -47,7 +47,8 @@ def jobs_group():
 @click.option('--format', type=click.Choice([f.value for f in OutputFormat]), 
               default=OutputFormat.BASIC.value, help='Output format')
 @click.option('--ignore-directives', is_flag=True, help='Ignore #SBATCH directives')
-def submit_job(script: str, ignore_directives: bool, **kwargs: Dict[str, Any]):
+@click.option('--curl', is_flag=True, help='Output equivalent curl command')
+def submit_job(script: str, ignore_directives: bool, curl: bool = False, **kwargs: Dict[str, Any]):
     """Submit a job to Slurm"""
     client = get_client()
     
@@ -69,9 +70,12 @@ def submit_job(script: str, ignore_directives: bool, **kwargs: Dict[str, Any]):
                  if v is not None and k not in ['format', 'parsable']}
     
     try:
-        result = client.submit_job(script_content, params)
-        output_format = OutputFormat.PARSABLE if kwargs.get('parsable') else OutputFormat(kwargs.get('format'))
-        click.echo(format_job_submission(result, output_format))
+        result = client.submit_job(script_content, params, return_curl=curl)
+        if curl:
+            click.echo(result)
+        else:
+            output_format = OutputFormat.PARSABLE if kwargs.get('parsable') else OutputFormat(kwargs.get('format'))
+            click.echo(format_job_submission(result, output_format))
     except Exception as e:
         if kwargs.get('parsable'):
             click.echo(f"error;{str(e)}", err=True)

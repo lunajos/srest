@@ -21,7 +21,8 @@ def login(username: str, password: str):
     auth_status = AuthStatus()
     auth_status.update_login(
         token=token_info['token'],
-        expires_at=datetime.fromisoformat(token_info['expires'])
+        expires_at=datetime.fromisoformat(token_info['expires']),
+        username=username
     )
     
     click.echo("Login successful")

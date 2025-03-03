@@ -1,17 +1,19 @@
 import click
 import json
-from typing import Dict, Any
+import os
+from typing import Dict, Any, cast
 from ...client import get_client
 from ...parsers.submit import SlurmDirectiveParser, OutputFormat
+from swagger_client.models import V0036JobSubmissionResponse, V0036JobsResponse
 
-def format_job_submission(result: Dict[str, Any], output_format: OutputFormat) -> str:
+def format_job_submission(result: V0036JobSubmissionResponse, output_format: OutputFormat) -> str:
     """Format job submission result"""
     if output_format == OutputFormat.PARSABLE:
-        return str(result.get('job_id', ''))
+        return str(result.job_id)
     elif output_format == OutputFormat.JSON:
-        return json.dumps(result, indent=2)
+        return json.dumps(result.to_dict(), indent=2)
     else:
-        return f"Submitted batch job {result.get('job_id', '')}"
+        return f"Submitted batch job {result.job_id}"
 
 def format_time(minutes: int) -> str:
     """Format time in minutes to readable string"""
@@ -48,12 +50,14 @@ def jobs_group():
               default=OutputFormat.BASIC.value, help='Output format')
 @click.option('--ignore-directives', is_flag=True, help='Ignore #SBATCH directives')
 @click.option('--curl', is_flag=True, help='Output equivalent curl command')
+@click.option('--workdir', type=click.Path(exists=True), help='Working directory for the job')
 def submit_job(script: str, ignore_directives: bool, curl: bool = False, **kwargs: Dict[str, Any]):
     """Submit a job to Slurm"""
-    client = get_client()
+    client = get_client().job
     
-    # Read script content
-    with open(script) as f:
+    # Read script content and get absolute paths
+    script_path = os.path.abspath(script)
+    with open(script_path) as f:
         script_content = f.read()
     
     # Parse directives unless ignored
@@ -61,13 +65,19 @@ def submit_job(script: str, ignore_directives: bool, curl: bool = False, **kwarg
         script_content, directive_params = SlurmDirectiveParser.parse_script(script_content)
         # Command line args override directives
         params = {
+            # Job parameters
+            'environment': [],  # Empty environment list required
             **directive_params,
             **{k: v for k, v in kwargs.items() 
                if v is not None and k not in ['format', 'parsable']}
         }
     else:
-        params = {k: v for k, v in kwargs.items() 
-                 if v is not None and k not in ['format', 'parsable']}
+        params = {
+            # Job parameters
+            'environment': [],  # Empty environment list required
+            **{k: v for k, v in kwargs.items() 
+               if v is not None and k not in ['format', 'parsable']}
+        }
     
     try:
         result = client.submit_job(script_content, params, return_curl=curl)
@@ -90,23 +100,15 @@ def submit_job(script: str, ignore_directives: bool, curl: bool = False, **kwarg
               default=OutputFormat.BASIC.value, help='Output format')
 def list_jobs(user: str, partition: str, state: str, format: str):
     """List jobs"""
-    client = get_client()
-    
-    # Build filters
-    filters = {}
-    if user:
-        filters['user'] = user
-    if partition:
-        filters['partition'] = partition
-    if state:
-        filters['state'] = state
+    client = get_client().job
     
     try:
-        result = client.list_jobs(**filters)
+        result = client.get_jobs()
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(result, indent=2))
         else:
-            jobs = result.get('jobs', [])
+            result = cast(V0036JobsResponse, result)
+            jobs = result.jobs or []
             if not jobs:
                 click.echo("No jobs found")
                 return
@@ -116,13 +118,13 @@ def list_jobs(user: str, partition: str, state: str, format: str):
             
             for job in jobs:
                 rows.append([
-                    str(job.get('job_id', '')),
-                    job.get('name', ''),
-                    job.get('user_name', ''),
-                    job.get('partition', ''),
-                    job.get('job_state', ''),
-                    format_time(job.get('time_limit_minutes', 0)),
-                    str(job.get('nodes', ''))
+                    str(job.job_id),
+                    job.name or '',
+                    job.user_name or '',
+                    job.partition or '',
+                    job.job_state or '',
+                    format_time(job.time_limit or 0),
+                    str(job.nodes or '')
                 ])
             
             # Print table
@@ -152,7 +154,7 @@ def list_jobs(user: str, partition: str, state: str, format: str):
               default=OutputFormat.JSON.value, help='Output format')
 def show_job(job_id: str, format: str):
     """Show detailed information about a job"""
-    client = get_client()
+    client = get_client().job
     try:
         result = client.get_job(job_id)
         if format == OutputFormat.JSON.value:
@@ -163,31 +165,34 @@ def show_job(job_id: str, format: str):
             click.echo(json.dumps(result, indent=2))
         else:
             # Basic format - show key details
-            job = result
-            click.echo(f"Job ID: {job.get('job_id')}")
-            click.echo(f"Name: {job.get('name')}")
-            click.echo(f"User: {job.get('user_name')}")
-            click.echo(f"Account: {job.get('account')}")
-            click.echo(f"Partition: {job.get('partition')}")
-            click.echo(f"QOS: {job.get('qos')}")
-            click.echo(f"State: {job.get('job_state')}")
+            result = cast(V0036JobsResponse, result)
+            if not result.jobs or not result.jobs[0]:
+                click.echo("Job not found")
+                return
+                
+            job = result.jobs[0]
+            click.echo(f"Job ID: {job.job_id}")
+            click.echo(f"Name: {job.name}")
+            click.echo(f"User: {job.user_name}")
+            click.echo(f"Account: {job.account}")
+            click.echo(f"Partition: {job.partition}")
+            click.echo(f"QOS: {job.qos}")
+            click.echo(f"State: {job.job_state}")
             
             # Show queue position if pending
-            if job.get('job_state') == 'PENDING':
-                queue_info = client.get_queue_position(job_id)
-                click.echo(f"Queue Position: {queue_info.get('position')}")
-                click.echo(f"Estimated Start: {queue_info.get('estimated_start_time')}")
-                click.echo(f"Reason: {queue_info.get('reason')}")
+            if job.job_state == 'PENDING':
+                # Queue position not supported in v3 yet
+                click.echo(f"Reason: {job.state_reason}")
             
-            click.echo(f"Working Directory: {job.get('work_dir')}")
-            click.echo(f"Command: {job.get('command')}")
+            click.echo(f"Working Directory: {job.work_dir}")
+            click.echo(f"Command: {job.command}")
             
             # Resources
             click.echo("\nResources:")
-            click.echo(f"  Nodes: {job.get('nodes')}")
-            click.echo(f"  CPUs per Task: {job.get('cpus_per_task')}")
-            click.echo(f"  Memory: {job.get('memory_per_node')}")
-            click.echo(f"  Time Limit: {format_time(job.get('time_limit_minutes', 0))}")
+            click.echo(f"  Nodes: {job.nodes}")
+            click.echo(f"  CPUs per Task: {job.cpus_per_task}")
+            click.echo(f"  Memory: {job.memory_per_node}")
+            click.echo(f"  Time Limit: {format_time(job.time_limit or 0)}")
             
             # Time info
             if job.get('start_time'):
@@ -223,7 +228,7 @@ def show_job(job_id: str, format: str):
 @click.argument('job_id')
 def cancel_job(job_id: str):
     """Cancel a job"""
-    client = get_client()
+    client = get_client().job
     try:
         client.cancel_job(job_id)
         click.echo(f"Cancelled job {job_id}")

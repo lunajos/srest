@@ -2,17 +2,15 @@
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
 
-from .v2 import (
-    ClientConfig,
-    JobClient,
-    NodeClient,
-    PartitionClient,
-    ReservationClient,
-    DiagClient,
-    AccountClient,
-    SlurmError,
-    JobSubmitResponse,
-    JobResponse
+from .v3.jobs import JobClient
+from .v3.nodes import NodeClient
+from .v3.partitions import PartitionClient
+from swagger_client.models import (
+    V0036JobSubmissionResponse,
+    V0036JobsResponse,
+    V0036NodesResponse,
+    V0036PartitionsResponse,
+    V0036Diag
 )
 
 @dataclass
@@ -21,9 +19,6 @@ class SlurmRESTClient:
     job: JobClient
     node: NodeClient
     partition: PartitionClient
-    reservation: ReservationClient
-    diag: DiagClient
-    account: AccountClient
     
     def submit_job(self, script_content: str, params: Dict[str, Any], return_curl: bool = False) -> Dict[str, Any]:
         """Submit a job to Slurm"""
@@ -34,56 +29,46 @@ class SlurmRESTClient:
         )
         if isinstance(response, str):
             return {'curl_command': response}
-        return response.__dict__
+        return response.to_dict()
     
     def list_jobs(self, user: Optional[str] = None, return_curl: bool = False) -> Dict[str, Any]:
         """List jobs"""
         response = self.job.get_jobs(user=user, return_curl=return_curl)
         if isinstance(response, str):
             return {'curl_command': response}
-        return response.__dict__
+        return response.to_dict()
     
     def get_job(self, job_id: str, return_curl: bool = False) -> Dict[str, Any]:
         """Get job details"""
         response = self.job.get_job(job_id=job_id, return_curl=return_curl)
         if isinstance(response, str):
             return {'curl_command': response}
-        return response.__dict__
+        return response.to_dict()
     
     def list_nodes(self, **filters) -> Dict[str, Any]:
         """List compute nodes"""
         response = self.node.get_nodes(return_curl=False, **filters)
         if isinstance(response, str):
             return {'curl_command': response}
-        return {'nodes': [n.__dict__ for n in response.nodes]}
+        return response.to_dict()
         
-    def get_diag(self, return_curl: bool = False) -> Dict[str, Any]:
-        """Get diagnostic information"""
-        response = self.diag.get_diagnostics(return_curl=return_curl)
-        if isinstance(response, str):
-            return {'curl_command': response}
-        return response.__dict__
+
     
     def list_partitions(self, **filters) -> Dict[str, Any]:
         """List partitions"""
         response = self.partition.get_partitions(return_curl=False)
         if isinstance(response, str):
             return {'curl_command': response}
-        return response.__dict__
+        return response.to_dict()
     
-    def cancel_job(self, job_id: str, return_curl: bool = False) -> Dict[str, Any]:
+    def cancel_job(self, job_id: str, return_curl: bool = False) -> None:
         """Cancel a job"""
-        response = self.job.cancel_job(job_id=job_id, return_curl=return_curl)
-        if isinstance(response, str):
-            return {'curl_command': response}
-        return response.__dict__
+        self.job.cancel_job(job_id=job_id, return_curl=return_curl)
 
 def get_client() -> SlurmRESTClient:
     """Get configured client instance with version checking."""
     from ..config import Config
     from ..auth.status import AuthStatus
-    import subprocess
-    from ..utils.version import parse_slurm_version, get_compatible_api_version, verify_api_endpoint
     
     config = Config()
     auth_status = AuthStatus()
@@ -98,53 +83,19 @@ def get_client() -> SlurmRESTClient:
         raise ValueError("Slurm REST API URL not configured. Run 'srest config set slurm.url <url>'")
     
     token = auth_status.get_token()
-    
-    # Get and verify API version
-    try:
-        result = subprocess.run(['sinfo', '--version'], 
-                              capture_output=True, 
-                              text=True, 
-                              check=True)
-        slurm_version = parse_slurm_version(result.stdout.strip())
-    except (subprocess.SubprocessError, ValueError) as e:
-        raise RuntimeError(f"Failed to get Slurm version: {e}")
-    
-    api_version = config.get('slurm.api_version')
-    
-    if not api_version:
-        api_version = get_compatible_api_version(slurm_version)
-        config.set('slurm.api_version', api_version)
-    
-    # Verify API endpoint
-    if not verify_api_endpoint(base_url, api_version):
-        raise ValueError(f"API endpoint not accessible with version {api_version}")
-    
-    # Create client config
-    client_config = ClientConfig(
-        base_url=base_url,
-        api_version=api_version,
-        token=token
-    )
+    username = auth_status.get_username()
     
     # Create unified client
     return SlurmRESTClient(
-        job=JobClient(client_config),
-        node=NodeClient(client_config),
-        partition=PartitionClient(client_config),
-        reservation=ReservationClient(client_config),
-        diag=DiagClient(client_config),
-        account=AccountClient(client_config)
+        job=JobClient(url=base_url, token=token, username=username),
+        node=NodeClient(url=base_url, token=token, username=username),
+        partition=PartitionClient(url=base_url, token=token, username=username)
     )
 
 __all__ = [
     'get_client',
     'SlurmRESTClient',
-    'ClientConfig',
     'JobClient',
     'NodeClient',
-    'PartitionClient',
-    'ReservationClient',
-    'DiagClient',
-    'AccountClient',
-    'SlurmError'
+    'PartitionClient'
 ]

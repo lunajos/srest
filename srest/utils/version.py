@@ -29,7 +29,7 @@ def get_compatible_api_version(slurm_version: Tuple[int, int, int]) -> str:
 def verify_api_endpoint(url: str, api_version: str) -> bool:
     """Verify if the API endpoint is accessible with the given version."""
     try:
-        response = requests.head(f"{url}/slurm/{api_version}/jobs")
+        response = requests.head(f"{url}/slurm/{api_version}/nodes")
         return response.status_code != 404
     except requests.RequestException:
         return False

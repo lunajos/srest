@@ -86,6 +86,13 @@ class SlurmRESTClient:
             return {'curl_command': response}
         return response.to_dict()
 
+    def get_mcs_label(self, label: str, return_curl: bool = False) -> Dict[str, Any]:
+        """Get MCS label details"""
+        response = self.mcs.get_mcs_label(label, return_curl=return_curl)
+        if isinstance(response, str):
+            return {'curl_command': response}
+        return response.to_dict()
+
 def get_client() -> SlurmRESTClient:
     """Get configured client instance with version checking."""
     from ..config import Config

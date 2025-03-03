@@ -29,16 +29,16 @@ class SlurmDirectiveParser:
         # Basic job settings
         "job_name": "name",
         "name": "name",
-        "nodes": "nodes",
-        "ntasks": "ntasks",
-        "cpus_per_task": "cpus_per_task",
+        "nodes": "nodes",  # API expects nodes as string
+        "ntasks": "tres_per_job",  # API expects tres_per_job
+        "cpus_per_task": "cpus_per_task",  # Keep as integer
         "partition": "partition",
-        "time": "time",
+        "time": "time_limit",  # API expects time_limit as integer
         "array": "array",
         
         # Memory settings
-        "mem": "mem",
-        "mem_per_cpu": "mem_per_cpu",
+        "mem": "memory_per_node",  # API expects memory_per_node
+        "mem_per_cpu": "memory_per_cpu",
         
         # Account and QoS
         "account": "account",
@@ -46,9 +46,9 @@ class SlurmDirectiveParser:
         
         # Dependencies and constraints
         "dependency": "dependency",
-        "nodelist": "nodelist",
-        "exclude": "exclude",
-        "constraint": "constraint",
+        "nodelist": "req_nodes",  # API expects req_nodes
+        "exclude": "exc_nodes",  # API expects exc_nodes
+        "constraint": "constraints",  # API expects constraints
         
         # Email notifications
         "mail_type": "mail_type",
@@ -58,8 +58,8 @@ class SlurmDirectiveParser:
         "mcs_label": "mcs_label",
         
         # Output settings
-        "output": "stdout",
-        "error": "stderr",
+        "output": "standard_output",  # API expects standard_output
+        "error": "standard_error",  # API expects standard_error
         
         # Additional settings
         "licenses": "licenses",
@@ -70,10 +70,21 @@ class SlurmDirectiveParser:
     
     # Time format conversion
     TIME_FORMATS = [
-        (re.compile(r'^(\d+)-(\d+):(\d+):(\d+)$'), lambda m: int(m.group(1))*1440 + int(m.group(2))*60 + int(m.group(3))),  # days-hours:minutes:seconds
-        (re.compile(r'^(\d+):(\d+):(\d+)$'), lambda m: int(m.group(1))*60 + int(m.group(2))),  # hours:minutes:seconds
-        (re.compile(r'^(\d+):(\d+)$'), lambda m: int(m.group(1))*60 + int(m.group(2))),  # minutes:seconds
-        (re.compile(r'^(\d+)$'), lambda m: int(m.group(1)))  # minutes
+        # days-hours:minutes:seconds
+        (re.compile(r'^(\d+)-(\d+):(\d+):(\d+)$'), 
+         lambda m: int(m.group(1))*24*60 + int(m.group(2))*60 + int(m.group(3)) + int(m.group(4))/60),
+        # days-hours:minutes
+        (re.compile(r'^(\d+)-(\d+):(\d+)$'), 
+         lambda m: int(m.group(1))*24*60 + int(m.group(2))*60 + int(m.group(3))),
+        # hours:minutes:seconds
+        (re.compile(r'^(\d+):(\d+):(\d+)$'), 
+         lambda m: int(m.group(1))*60 + int(m.group(2)) + int(m.group(3))/60),
+        # hours:minutes
+        (re.compile(r'^(\d+):(\d+)$'), 
+         lambda m: int(m.group(1))*60 + int(m.group(2))),
+        # minutes
+        (re.compile(r'^(\d+)$'), 
+         lambda m: int(m.group(1)))
     ]
     
     @staticmethod
@@ -117,11 +128,39 @@ class SlurmDirectiveParser:
                     key = parts[0].strip().lstrip('-').replace('-', '_')
                     value = parts[1].strip() if len(parts) > 1 else None
                     logger.debug(f"Found space-separated directive: {key} {value}")
+                    
+                # Special case for -p (partition)
+                if key == 'p':
+                    key = 'partition'
+                    logger.debug(f"Mapped -p to partition")
                 
                 # Map directive to REST API parameter
                 api_key = SlurmDirectiveParser.DIRECTIVE_MAP.get(key)
                 if api_key:
-                    directives[api_key] = value
+                    # Handle special cases
+                    if api_key == 'mail_type':
+                        # Convert to list
+                        directives[api_key] = [v.strip() for v in value.split(',')]
+                    elif api_key == 'cpus_per_task':
+                        # Convert to integer
+                        try:
+                            directives[api_key] = int(value)
+                        except ValueError:
+                            logger.warning(f"Invalid integer value for {key}: {value}")
+                            directives[api_key] = value
+                    elif api_key == 'nodes':
+                        # API expects string
+                        directives[api_key] = str(value)
+                    elif api_key == 'tres_per_job':
+                        # Convert ntasks to tres format
+                        try:
+                            ntasks = int(value)
+                            directives[api_key] = f'cpu={ntasks}'
+                        except ValueError:
+                            logger.warning(f"Invalid integer value for {key}: {value}")
+                            directives[api_key] = value
+                    else:
+                        directives[api_key] = value
                     logger.debug(f"Mapped directive {key} to API parameter {api_key}")
                 else:
                     logger.warning(f"Unknown directive {key}, skipping")
@@ -133,16 +172,17 @@ class SlurmDirectiveParser:
         logger.debug(f"Parsed directives: {directives}")
         
         # Convert time formats if present
-        if "time" in directives:
-            original_time = directives["time"]
+        if "time_limit" in directives:
+            original_time = directives["time_limit"]
             for pattern, converter in SlurmDirectiveParser.TIME_FORMATS:
-                match = pattern.match(directives["time"])
+                match = pattern.match(original_time)
                 if match:
-                    directives["time"] = converter(match)
-                    logger.debug(f"Converted time format from {original_time} to {directives['time']} minutes")
+                    minutes = int(converter(match))
+                    directives["time_limit"] = minutes
+                    logger.debug(f"Converted time format from {original_time} to {minutes} minutes")
                     break
             else:
-                error_msg = f"Invalid time format: {directives['time']}"
+                error_msg = f"Invalid time format: {original_time}"
                 logger.error(error_msg)
                 raise ValueError(error_msg)
             

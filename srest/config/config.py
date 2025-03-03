@@ -16,7 +16,7 @@ class Config:
         # Default configuration
         self.defaults = {
             'slurm': {
-                'url': os.environ.get('SLURM_REST_URL', ''),
+                'url': os.environ.get('SREST_URL', ''),
             },
             'auth': {
                 'type': 'keycloak',
@@ -32,7 +32,7 @@ class Config:
     def get(self, key: str, default: Optional[str] = None) -> str:
         """Get configuration value"""
         # Check environment first
-        env_key = f"SLURM_REST_{key.upper()}"
+        env_key = f"SREST_{key.upper().replace('.', '_')}"
         if env_key in os.environ:
             return os.environ[env_key]
             

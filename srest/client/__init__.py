@@ -2,16 +2,13 @@
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
 
-from .v3.jobs import JobClient
-from .v3.nodes import NodeClient
-from .v3.partitions import PartitionClient
-from swagger_client.models import (
-    V0036JobSubmissionResponse,
-    V0036JobsResponse,
-    V0036NodesResponse,
-    V0036PartitionsResponse,
-    V0036Diag
-)
+from .v2.base import ClientConfig
+from .v2.jobs import JobClient
+from .v2.nodes import NodeClient
+from .v2.partitions import PartitionClient
+from .v2.diag import DiagClient
+from .v2.licenses import LicenseClient
+from .v2.mcs import McsClient
 
 @dataclass
 class SlurmRESTClient:
@@ -19,6 +16,9 @@ class SlurmRESTClient:
     job: JobClient
     node: NodeClient
     partition: PartitionClient
+    diag: DiagClient
+    license: LicenseClient
+    mcs: McsClient
     
     def submit_job(self, script_content: str, params: Dict[str, Any], return_curl: bool = False) -> Dict[str, Any]:
         """Submit a job to Slurm"""
@@ -65,6 +65,27 @@ class SlurmRESTClient:
         """Cancel a job"""
         self.job.cancel_job(job_id=job_id, return_curl=return_curl)
 
+    def get_diag(self, return_curl: bool = False) -> Dict[str, Any]:
+        """Get diagnostic information"""
+        response = self.diag.get_diagnostics(return_curl=return_curl)
+        if isinstance(response, str):
+            return {'curl_command': response}
+        return response.to_dict()
+
+    def list_licenses(self, return_curl: bool = False) -> Dict[str, Any]:
+        """List licenses"""
+        response = self.license.get_licenses(return_curl=return_curl)
+        if isinstance(response, str):
+            return {'curl_command': response}
+        return response.to_dict()
+
+    def list_mcs_labels(self, type: Optional[str] = None, return_curl: bool = False) -> Dict[str, Any]:
+        """List MCS labels"""
+        response = self.mcs.get_mcs_labels(type=type, return_curl=return_curl)
+        if isinstance(response, str):
+            return {'curl_command': response}
+        return response.to_dict()
+
 def get_client() -> SlurmRESTClient:
     """Get configured client instance with version checking."""
     from ..config import Config
@@ -86,10 +107,19 @@ def get_client() -> SlurmRESTClient:
     username = auth_status.get_username()
     
     # Create unified client
+    config = ClientConfig(
+        base_url=base_url,
+        token=token,
+        username=username
+    )
+    
     return SlurmRESTClient(
-        job=JobClient(url=base_url, token=token, username=username),
-        node=NodeClient(url=base_url, token=token, username=username),
-        partition=PartitionClient(url=base_url, token=token, username=username)
+        job=JobClient(config),
+        node=NodeClient(config),
+        partition=PartitionClient(config),
+        diag=DiagClient(config),
+        license=LicenseClient(config),
+        mcs=McsClient(config)
     )
 
 __all__ = [
@@ -97,5 +127,8 @@ __all__ = [
     'SlurmRESTClient',
     'JobClient',
     'NodeClient',
-    'PartitionClient'
+    'PartitionClient',
+    'DiagClient',
+    'LicenseClient',
+    'McsClient'
 ]

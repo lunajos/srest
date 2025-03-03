@@ -26,6 +26,15 @@ class SlurmMeta:
         self.version = data.get('version')
         # Ignore unknown fields
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert metadata to dictionary"""
+        result = {}
+        for field in self.__dataclass_fields__:
+            value = getattr(self, field)
+            if value is not None:
+                result[field] = value
+        return result
+
 @dataclass
 class SlurmResponse:
     """Base response structure for Slurm API endpoints"""
@@ -35,15 +44,29 @@ class SlurmResponse:
     
     def __init__(self, **data):
         # Convert meta if present
-        meta_data = data.pop('meta', None)
+        meta_data = data.get('meta')
         if meta_data:
             self.meta = SlurmMeta(**meta_data)
         
         # Set errors and warnings
-        self.errors = data.pop('errors', None)
-        self.warnings = data.pop('warnings', None)
+        self.errors = data.get('errors')
+        self.warnings = data.get('warnings')
         
         # Ignore any other fields
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert response to dictionary"""
+        result = {}
+        for field in self.__dataclass_fields__:
+            value = getattr(self, field)
+            if value is not None:
+                if hasattr(value, 'to_dict'):
+                    result[field] = value.to_dict()
+                elif isinstance(value, list):
+                    result[field] = [v.to_dict() if hasattr(v, 'to_dict') else v for v in value]
+                else:
+                    result[field] = value
+        return result
 
 @dataclass
 class JobSubmitRequest:
@@ -88,12 +111,16 @@ class JobInfo:
     working_directory: Optional[str] = None
 
 @dataclass
-class JobResponse:
+class JobResponse(SlurmResponse):
     """Response structure for job queries"""
-    meta: SlurmMeta
-    jobs: List[JobInfo]
-    errors: Optional[List[Dict[str, Any]]] = None
-    warnings: Optional[List[Dict[str, Any]]] = None
+    jobs: List[Dict[str, Any]] = None
+    
+    def __init__(self, **data):
+        # Initialize parent
+        super().__init__(**data)
+        
+        # Set jobs
+        self.jobs = data.get('jobs', [])
 
 class JobState(Enum):
     """Possible job states"""
@@ -109,3 +136,24 @@ class JobState(Enum):
     BOOT_FAIL = "BOOT_FAIL"
     DEADLINE = "DEADLINE"
     OUT_OF_MEMORY = "OUT_OF_MEMORY"
+
+@dataclass
+class LastUpdate:
+    """Last update information"""
+    set: bool
+    infinite: bool
+    number: int
+
+@dataclass
+class PartitionResponse(SlurmResponse):
+    """Response structure for partition queries"""
+    partitions: List[Dict[str, Any]] = None
+    
+    def __init__(self, **data):
+        # Initialize parent
+        super().__init__(**data)
+        
+        # Set partitions
+        self.partitions = data.get('partitions', [])
+        
+        # Ignore last_update and other fields

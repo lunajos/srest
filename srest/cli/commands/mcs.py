@@ -14,12 +14,16 @@ def mcs_group():
 @click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
               default=OutputFormat.BASIC.value, help='Output format')
 @click.option('--type', help='Filter by label type')
-def list_labels(format: str, type: str):
+@click.option('--curl', is_flag=True, help='Show curl command instead of executing')
+def list_labels(format: str, type: str, curl: bool):
     """List MCS labels"""
     client = get_client()
     
     try:
-        result = client.list_mcs_labels(type=type)
+        result = client.list_mcs_labels(type=type, return_curl=curl)
+        if curl:
+            click.echo(result['curl_command'])
+            return
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(result, indent=2))
         else:
@@ -47,12 +51,16 @@ def list_labels(format: str, type: str):
 @click.argument('label')
 @click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
               default=OutputFormat.BASIC.value, help='Output format')
-def show_label(label: str, format: str):
+@click.option('--curl', is_flag=True, help='Show curl command instead of executing')
+def show_label(label: str, format: str, curl: bool):
     """Show MCS label details"""
     client = get_client()
     
     try:
-        result = client.get_mcs_label(label)
+        result = client.get_mcs_label(label, return_curl=curl)
+        if curl:
+            click.echo(result['curl_command'])
+            return
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(result, indent=2))
         else:

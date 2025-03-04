@@ -1,4 +1,4 @@
-from .jobs import jobs_group
+from .job import jobs_group
 from .nodes import nodes_group
 from .partitions import partitions_group
 from .reservations import reservations_group

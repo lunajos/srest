@@ -26,7 +26,7 @@ def format_time(minutes: int) -> str:
         return f"{days}-{hours:02d}:{mins:02d}"
     return f"{hours:02d}:{mins:02d}"
 
-@click.group(name='jobs')
+@click.group(name='job')
 def jobs_group():
     """Job management commands"""
     pass

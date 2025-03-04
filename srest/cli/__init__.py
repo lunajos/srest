@@ -2,7 +2,7 @@
 import click
 from .commands.auth import auth_group
 from .commands.config import config_group
-from .commands.jobs import jobs_group
+from .commands.job import jobs_group
 from .commands.nodes import nodes_group
 from .commands.partitions import partitions_group
 from .commands.diag import diag_group

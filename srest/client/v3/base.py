@@ -46,9 +46,14 @@ class BaseClient:
         
         # Add auth headers
         if self.username:
+            # User token auth
             self.api_client.default_headers['X-SLURM-USER-NAME'] = self.username
             self.api_client.default_headers['X-SLURM-USER-TOKEN'] = self.token
+        elif self.token.startswith('ey'):
+            # JWT auth
+            self.api_client.default_headers['Authorization'] = f'Bearer {self.token}'
         else:
+            # Token-only auth
             self.api_client.default_headers['X-SLURM-USER-TOKEN'] = self.token
             
         # Create Slurm API instance

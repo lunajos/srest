@@ -69,17 +69,17 @@ class BaseClient:
         if auth_status.is_logged_in():
             token = auth_status.get_token()
             if token:
-                headers['X-SLURM-USER-TOKEN'] = token
+                # Always use Bearer auth for JWT tokens
+                headers['Authorization'] = f'Bearer {token}'
         
         if self.config.username and self.config.token:
             # Method 1: Username + Token
-            headers.update({
-                'X-SLURM-USER-NAME': self.config.username,
-                'X-SLURM-USER-TOKEN': self.config.token
-            })
+            # Always use Bearer auth for tokens
+            headers['Authorization'] = f'Bearer {self.config.token}'
         elif self.config.token:
             # Method 2: Token only
-            headers['X-SLURM-USER-TOKEN'] = self.config.token
+            # Always use Bearer auth for tokens
+            headers['Authorization'] = f'Bearer {self.config.token}'
         elif self.config.bearer_token:
             # Method 3: Bearer token
             headers['Authorization'] = f'Bearer {self.config.bearer_token}'
@@ -123,9 +123,16 @@ class BaseClient:
         if return_curl:
             curl_parts = [f"curl -X {method}"]
             
-            # Add headers
-            for header, value in self.session.headers.items():
-                curl_parts.append(f"-H '{header}: {value}'")
+            # Add essential headers only
+            essential_headers = {
+                'Content-Type': 'application/json',
+                'Authorization': self.session.headers.get('Authorization', ''),
+                'X-SLURM-USER-TOKEN': self.session.headers.get('X-SLURM-USER-TOKEN', ''),
+                'X-SLURM-USER-NAME': self.session.headers.get('X-SLURM-USER-NAME', '')
+            }
+            for header, value in essential_headers.items():
+                if value:  # Only add if value is not empty
+                    curl_parts.append(f"-H '{header}: {value}'")
             
             # Add request body if present
             if 'json' in kwargs:
@@ -134,8 +141,7 @@ class BaseClient:
             # Add URL
             curl_parts.append(f"'{url}'")
             
-            return ' \
-  '.join(curl_parts)
+            return ' '.join(curl_parts)
         
         try:
             response = self.session.request(
@@ -164,11 +170,15 @@ class BaseClient:
             
             # Check for API-level errors in JSON response
             if response.status_code >= 400:
-                error_msg = data.get('error', {}).get('message', response.text)
-                raise SlurmError(
-                    error_code=response.status_code,
-                    message=error_msg
-                )
+                # Ignore TRES errors as they are not critical
+                if response.status_code == 511 and any(e.get('source') == 'slurmdb_tres_get' for e in data.get('errors', [])):
+                    pass
+                else:
+                    error_msg = data.get('error', {}).get('message', response.text)
+                    raise SlurmError(
+                        error_code=response.status_code,
+                        message=error_msg
+                    )
             
             # Create response object
             try:

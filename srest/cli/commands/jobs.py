@@ -64,11 +64,20 @@ def submit_job(script: str, ignore_directives: bool, curl: bool = False, **kwarg
     if not ignore_directives:
         script_content, directive_params = SlurmDirectiveParser.parse_script(script_content)
         # Command line args override directives
+        # Handle working directory with priority:
+        # 1. Command line --workdir
+        # 2. Script directive (--chdir/-D)
+        # 3. Default to /home/admin/devel/srest
+        if kwargs.get('workdir'):
+            kwargs['current_working_directory'] = os.path.abspath(kwargs['workdir'])
+            del kwargs['workdir']
+            
         params = {
             # Job parameters
             'environment': [],  # Empty environment list required
-            **directive_params,
-            **{k: v for k, v in kwargs.items() 
+            **directive_params,  # Script directives (including --chdir if present)
+            'current_working_directory': '/home/admin/devel/srest',  # Default working directory
+            **{k: v for k, v in kwargs.items()  # Command line args override everything
                if v is not None and k not in ['format', 'parsable']}
         }
     else:

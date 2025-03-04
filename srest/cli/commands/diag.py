@@ -12,12 +12,16 @@ def diag_group():
 @diag_group.command('show')
 @click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
               default=OutputFormat.BASIC.value, help='Output format')
-def show_diagnostics(format: str):
+@click.option('--curl', is_flag=True, help='Show curl command instead of executing')
+def show_diagnostics(format: str, curl: bool):
     """Show Slurm diagnostics"""
     client = get_client()
     
     try:
-        result = client.get_diag()
+        result = client.get_diag(return_curl=curl)
+        if curl:
+            click.echo(result['curl_command'])
+            return
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(result, indent=2))
         else:

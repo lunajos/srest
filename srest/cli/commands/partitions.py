@@ -46,4 +46,7 @@ def list_partitions(format: str):
             
             print_table(headers, rows)
     except Exception as e:
+        if hasattr(e, 'status') and e.status in [401, 511]:
+            click.echo("Session expired. Please run 'srest auth login' to log in again.")
+            return
         raise click.ClickException(str(e))

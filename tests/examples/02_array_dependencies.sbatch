@@ -4,7 +4,7 @@
 #SBATCH --error=array_%A_%a.err
 #SBATCH --array=1-4%2  # Run 4 tasks, max 2 concurrent
 #SBATCH --time=00:30:00
-#SBATCH --mem=4G
+##SBATCH --mem=1
 
 echo "Processing chunk $SLURM_ARRAY_TASK_ID"
 

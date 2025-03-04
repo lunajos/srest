@@ -8,18 +8,27 @@ from .models import SlurmMeta
 class PartitionInfo:
     """Partition information"""
     name: str
-    nodes: str
-    total_nodes: int
-    total_cpus: int
-    default_time_limit: Optional[int] = None
-    max_time_limit: Optional[int] = None
-    default_memory_per_node: Optional[int] = None
-    max_memory_per_node: Optional[int] = None
-    allowed_accounts: Optional[List[str]] = None
-    allowed_qos: Optional[List[str]] = None
-    qos_char: Optional[str] = None
-    state: Optional[str] = None
-    flags: Optional[List[str]] = None
+    nodes: Dict[str, Any]
+    partition: Dict[str, Any]
+    defaults: Dict[str, Any]
+    maximums: Dict[str, Any]
+    minimums: Dict[str, Any]
+    cpus: Dict[str, Any]
+    tres: Dict[str, Any]
+    accounts: Dict[str, Any] = None
+    groups: Dict[str, Any] = None
+    qos: Dict[str, Any] = None
+    timeouts: Dict[str, Any] = None
+    priority: Dict[str, Any] = None
+    cluster: str = ''
+    alternate: str = ''
+    node_sets: str = ''
+    grace_time: int = 0
+    
+    def __init__(self, **data):
+        # Set all fields from data
+        for field in self.__dataclass_fields__:
+            setattr(self, field, data.get(field))
 
 @dataclass
 class PartitionResponse:

@@ -21,6 +21,15 @@ class DiagInfo:
     jobs_canceled: int
     jobs_failed: int
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert diagnostic info to dictionary"""
+        result = {}
+        for field in self.__dataclass_fields__:
+            value = getattr(self, field)
+            if value is not None:
+                result[field] = value
+        return result
+
 @dataclass
 class DiagResponse(SlurmResponse):
     """Response for diagnostic queries"""

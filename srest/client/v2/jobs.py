@@ -53,6 +53,12 @@ class JobClient(BaseClient):
                         job_params['ntasks'] = int(value)
                     elif flag == '-p':
                         job_params['partition'] = value
+                    elif flag == '--mcs-label':
+                        job_params['mcs_label'] = value
+                    else:
+                        # Handle any other flag by removing leading dashes and using as key
+                        key = flag.lstrip('-').replace('-', '_')
+                        job_params[key] = value
                 except Exception as e:
                     print(f'Warning: Failed to parse directive {line}: {e}')
             script_lines.append(line)
@@ -60,7 +66,19 @@ class JobClient(BaseClient):
         # Convert mail_type from string to list of valid flags
         if 'mail_type' in job_params:
             if job_params['mail_type'] == ['ALL']:
-                job_params['mail_type'] = ['MAIL_BEGIN', 'MAIL_END', 'MAIL_FAIL', 'MAIL_REQUEUE']
+                job_params['mail_type'] = ['begin', 'end', 'fail', 'requeue']
+            else:
+                # Convert to lowercase and remove MAIL_ prefix
+                job_params['mail_type'] = [flag.lower().replace('mail_', '') for flag in job_params['mail_type']]
+                
+        # Working directory priority:
+        # 1. API params (passed in from CLI)
+        # 2. Script directive (--chdir/-D)
+        # 3. Current working directory
+        if not params or 'current_working_directory' not in params:
+            if 'current_working_directory' not in job_params:
+                import os
+                job_params['current_working_directory'] = os.getcwd()
         
         # Handle node specifications
         if 'req_nodes' in job_params:
@@ -113,7 +131,7 @@ class JobClient(BaseClient):
             
         return self._make_request(
             method='GET',
-            endpoint='/job',
+            endpoint='/jobs',
             response_type=JobResponse,
             params=params,
             return_curl=return_curl
@@ -135,7 +153,7 @@ class JobClient(BaseClient):
         """
         return self._make_request(
             method='GET',
-            endpoint=f'/job/{job_id}',
+            endpoint=f'/jobs/{job_id}',
             response_type=JobResponse,
             return_curl=return_curl
         )
@@ -158,7 +176,7 @@ class JobClient(BaseClient):
         """
         return self._make_request(
             method='DELETE',
-            endpoint=f'/job/{job_id}',
+            endpoint=f'/jobs/{job_id}',
             response_type=JobResponse,
             params={'signal': signal},
             return_curl=return_curl

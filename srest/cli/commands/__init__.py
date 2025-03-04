@@ -5,7 +5,7 @@ from .reservations import reservations_group
 from .licenses import licenses_group
 from .diag import diag_group
 from .accounts import accounts_group
-from .mcs import mcs_group
+
 from .config import config_group
 from .auth import auth_group
 
@@ -17,7 +17,7 @@ __all__ = [
     'licenses_group',
     'diag_group',
     'accounts_group',
-    'mcs_group',
+
     'config_group',
     'auth_group'
 ]

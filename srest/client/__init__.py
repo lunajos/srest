@@ -8,7 +8,8 @@ from .v2.nodes import NodeClient
 from .v2.partitions import PartitionClient
 from .v2.diag import DiagClient
 from .v2.licenses import LicenseClient
-from .v2.mcs import McsClient
+
+from .v2.db import DbClient
 
 @dataclass
 class SlurmRESTClient:
@@ -18,7 +19,8 @@ class SlurmRESTClient:
     partition: PartitionClient
     diag: DiagClient
     license: LicenseClient
-    mcs: McsClient
+
+    db: DbClient
     
     def submit_job(self, script_content: str, params: Dict[str, Any], return_curl: bool = False) -> Dict[str, Any]:
         """Submit a job to Slurm"""
@@ -126,7 +128,8 @@ def get_client() -> SlurmRESTClient:
         partition=PartitionClient(config),
         diag=DiagClient(config),
         license=LicenseClient(config),
-        mcs=McsClient(config)
+
+        db=DbClient(config)
     )
 
 __all__ = [
@@ -137,5 +140,5 @@ __all__ = [
     'PartitionClient',
     'DiagClient',
     'LicenseClient',
-    'McsClient'
+    'DbClient'
 ]

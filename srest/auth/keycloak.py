@@ -41,8 +41,43 @@ class KeycloakAuth:
             parsed_url = urlparse(self.server_url)
             is_mock = parsed_url.hostname in ['localhost', '127.0.0.1']
             if is_mock:
+                import jwt
+                import time
+                
+                # Create a JWT with proper claims
+                payload = {
+                    "exp": int(time.time()) + 3600,
+                    "iat": int(time.time()),
+                    "sub": username,
+                    "iss": "http://localhost:8080/realms/slurm",
+                    "aud": "slurm",
+                    "typ": "Bearer",
+                    "azp": "slurm",
+                    "acr": "1",
+                    "realm_access": {
+                        "roles": ["operator"]
+                    },
+                    "resource_access": {
+                        "slurm": {
+                            "roles": ["operator"]
+                        }
+                    },
+                    "scope": "openid profile email",
+                    "sid": "mock_session",
+                    "email_verified": True,
+                    "name": username,
+                    "preferred_username": username,
+                    "given_name": username,
+                    "family_name": "",
+                    "email": f"{username}@localhost"
+                }
+                
+                # Sign with a mock key
+                mock_key = "mock_key"
+                token = jwt.encode(payload, mock_key, algorithm='HS256')
+                
                 return {
-                    "access_token": "mock_token",
+                    "access_token": token,
                     "expires_in": 3600,
                     "refresh_token": "mock_refresh_token",
                     "token_type": "Bearer",

@@ -17,6 +17,18 @@ class JobAccountingResponse(SlurmResponse):
         # Set jobs
         self.jobs = data.get('jobs', [])
 
+@dataclass
+class AccountResponse(SlurmResponse):
+    """Response for account queries"""
+    accounts: List[Dict[str, Any]] = None
+    
+    def __init__(self, **data):
+        # Initialize parent
+        super().__init__(**data)
+        
+        # Set accounts
+        self.accounts = data.get('accounts', [])
+
 class DbClient(BaseClient):
     """Client for Slurm database operations"""
     
@@ -60,8 +72,29 @@ class DbClient(BaseClient):
             
         return self._make_request(
             method='GET',
-            endpoint='/slurmdb/jobs',
+            endpoint='/slurmdb/v0.0.36/jobs',
             response_type=JobAccountingResponse,
             params=params,
+            return_curl=return_curl
+        )
+        
+    def get_accounts(
+        self,
+        user: Optional[str] = None,
+        return_curl: bool = False
+    ) -> Union[AccountResponse, str]:
+        """Get account information
+        
+        Args:
+            return_curl: If True, return curl command instead of executing
+            
+        Returns:
+            AccountResponse or curl command if return_curl=True
+        """
+        return self._make_request(
+            method='GET',
+            endpoint='/slurmdb/v0.0.36/accounts',
+            response_type=AccountResponse,
+            params={'user': user} if user else None,
             return_curl=return_curl
         )

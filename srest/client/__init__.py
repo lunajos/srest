@@ -81,6 +81,13 @@ class SlurmRESTClient:
             return {'curl_command': response}
         return response.to_dict()
 
+    def list_accounts(self, user: Optional[str] = None, return_curl: bool = False) -> Dict[str, Any]:
+        """List accounts"""
+        response = self.db.get_accounts(user=user, return_curl=return_curl)
+        if isinstance(response, str):
+            return {'curl_command': response}
+        return response.to_dict()
+
     def list_mcs_labels(self, type: Optional[str] = None, return_curl: bool = False) -> Dict[str, Any]:
         """List MCS labels"""
         response = self.mcs.get_mcs_labels(type=type, return_curl=return_curl)

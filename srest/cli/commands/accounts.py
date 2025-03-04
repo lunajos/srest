@@ -14,12 +14,16 @@ def accounts_group():
 @click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
               default=OutputFormat.BASIC.value, help='Output format')
 @click.option('--user', help='Filter by user')
-def list_accounts(format: str, user: str):
+@click.option('--curl', is_flag=True, help='Show curl command instead of executing')
+def list_accounts(format: str, user: str, curl: bool):
     """List accounts"""
     client = get_client()
     
     try:
-        result = client.list_accounts(user=user)
+        result = client.list_accounts(user=user, return_curl=curl)
+        if curl:
+            click.echo(result['curl_command'])
+            return
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(result, indent=2))
         else:

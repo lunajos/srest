@@ -24,10 +24,6 @@ def list_partitions(format: str):
             raise click.ClickException(str(e))
             
         result = client.get_partitions()
-        # Debug output
-        click.echo("DEBUG: API Response:")
-        click.echo(json.dumps(result.to_dict(), indent=2))
-
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(result.to_dict(), indent=2))
             return
@@ -41,15 +37,14 @@ def list_partitions(format: str):
         rows = []
         
         for partition in partitions:
-            # Debug output for each partition
-            click.echo(f"DEBUG: Processing partition: {partition.__dict__}")
-            
             try:
                 name = partition.name if partition.name else ''
-                # Safely access nested attributes
-                state = ''
-                nodes_count = 0
-                is_default = 'no'
+                # Get partition state
+                state = partition.flags.get('state', [''])[0] if partition.flags else 'UP'
+                # Get node count from nodes.total
+                nodes_count = partition.nodes.get('total', 0) if partition.nodes else 0
+                # Check if this is the default partition
+                is_default = 'yes' if partition.defaults and partition.defaults.get('job') else 'no'
                 
                 rows.append([
                     name,
@@ -57,8 +52,12 @@ def list_partitions(format: str):
                     str(nodes_count),
                     is_default
                 ])
+            except AttributeError as e:
+                click.echo(f"Warning: Partition {name} has invalid format: {str(e)}")
+                continue
             except Exception as e:
-                click.echo(f"DEBUG: Error processing partition: {str(e)}")
+                click.echo(f"Warning: Error processing partition {name}: {str(e)}")
+                continue
             
         print_table(headers, rows)
     except Exception as e:

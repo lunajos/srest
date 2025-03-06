@@ -308,11 +308,15 @@ def show_job(job_id: str, format: str):
 
 @jobs_group.command('cancel')
 @click.argument('job_id')
-def cancel_job(job_id: str):
+@click.option('--curl', is_flag=True, help='Show curl command instead of executing')
+def cancel_job(job_id: str, curl: bool):
     """Cancel a job"""
     client = get_client().job
     try:
-        client.cancel_job(job_id)
-        click.echo(f"Cancelled job {job_id}")
+        result = client.cancel_job(job_id, return_curl=curl)
+        if curl:
+            click.echo(result)
+        else:
+            click.echo(f"Cancelled job {job_id}")
     except Exception as e:
         raise click.ClickException(str(e))

@@ -55,9 +55,14 @@ def jobs_group():
 @click.option('--ignore-directives', is_flag=True, help='Ignore #SBATCH directives')
 @click.option('--curl', is_flag=True, help='Output equivalent curl command')
 @click.option('--workdir', type=click.Path(exists=True), help='Working directory for the job')
+@click.option('--env', multiple=True, help='Environment variables in KEY=VALUE format')
 def submit_job(script: str, ignore_directives: bool, curl: bool = False, **kwargs: Dict[str, Any]):
     """Submit a job to Slurm"""
-    client = get_client().job
+    # Get client with optional direct authentication
+    client = get_client(
+        username=kwargs.pop('username', None),
+        token=kwargs.pop('token', None)
+    ).job
     
     # Read script content and get absolute paths
     script_path = os.path.abspath(script)
@@ -78,7 +83,13 @@ def submit_job(script: str, ignore_directives: bool, curl: bool = False, **kwarg
             
         params = {
             # Job parameters
-            'environment': [],  # Empty environment list required
+            'environment': kwargs.get('env', []) or [
+                # Essential environment variables
+                f"USER={os.environ.get('USER', '')}",
+                f"HOME={os.environ.get('HOME', '')}",
+                f"PATH=/usr/local/bin:/usr/bin:/bin",
+                f"SHELL=/bin/bash"
+            ],
             **directive_params,  # Script directives (including --chdir if present)
             'current_working_directory': '/home/admin/devel/srest',  # Default working directory
             **{k: v for k, v in kwargs.items()  # Command line args override everything
@@ -87,7 +98,13 @@ def submit_job(script: str, ignore_directives: bool, curl: bool = False, **kwarg
     else:
         params = {
             # Job parameters
-            'environment': [],  # Empty environment list required
+            'environment': kwargs.get('env', []) or [
+                # Essential environment variables
+                f"USER={os.environ.get('USER', '')}",
+                f"HOME={os.environ.get('HOME', '')}",
+                f"PATH=/usr/local/bin:/usr/bin:/bin",
+                f"SHELL=/bin/bash"
+            ],
             **{k: v for k, v in kwargs.items() 
                if v is not None and k not in ['format', 'parsable']}
         }

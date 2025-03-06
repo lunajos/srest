@@ -54,8 +54,6 @@ class SlurmRESTClient:
             return {'curl_command': response}
         return response.to_dict()
         
-
-    
     def list_partitions(self, **filters) -> Dict[str, Any]:
         """List partitions"""
         response = self.partition.get_partitions(return_curl=False)
@@ -108,25 +106,33 @@ class SlurmRESTClient:
             return {'curl_command': response}
         return response.to_dict()
 
-def get_client() -> SlurmRESTClient:
-    """Get configured client instance with version checking."""
+def get_client(username: str = None, token: str = None) -> SlurmRESTClient:
+    """Get configured client instance with version checking.
+    
+    Args:
+        username: Optional username to use for authentication
+        token: Optional token to use for authentication
+    """
     from ..config import Config
     from ..auth.status import AuthStatus
     
     config = Config()
-    auth_status = AuthStatus()
     
-    # Check login status
-    if not auth_status.is_logged_in():
-        raise ValueError("Not logged in. Run 'srest auth login' first")
-    
-    # Get base URL and token
+    # Get base URL and credentials
     base_url = config.get('slurm.url')
     if not base_url:
         raise ValueError("Slurm REST API URL not configured. Run 'srest config set slurm.url <url>'")
     
-    token = auth_status.get_token()
-    username = auth_status.get_username()
+    if username and token:
+        # Use provided credentials
+        pass
+    else:
+        # Check login status
+        auth_status = AuthStatus()
+        if not auth_status.is_logged_in():
+            raise ValueError("Not logged in. Run 'srest auth login' first")
+        token = auth_status.get_token()
+        username = auth_status.get_username()
     
     # Create unified client
     config = ClientConfig(

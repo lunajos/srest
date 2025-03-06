@@ -18,23 +18,43 @@ def show_diagnostics(format: str, curl: bool):
     client = get_client()
     
     try:
-        result = client.get_diag(return_curl=curl)
+        result = client.diag.get_diagnostics(return_curl=curl)
         if curl:
-            click.echo(result['curl_command'])
+            click.echo(result)
             return
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(result, indent=2))
         else:
-            diag = result.get('statistics', {})
-            if not diag:
+            if isinstance(result, dict):
+                # Handle dictionary response
+                diag = result.get('statistics', {})
+                meta = result.get('meta', {})
+            else:
+                # Handle response object
+                diag = result.statistics.to_dict() if result.statistics else {}
+                meta = result.meta.to_dict() if result.meta else {}
+                
+            if not diag and not meta:
                 click.echo("No diagnostic information available")
                 return
                 
             # Server info
             click.echo("Server Information:")
-            click.echo(f"  Version: {diag.get('server_version', 'unknown')}")
+            slurm_info = meta.get('slurm', {})
+            if slurm_info:
+                version = slurm_info.get('version', {})
+                version_str = f"{version.get('major', '0')}.{version.get('minor', '0')}.{version.get('micro', '0')}"
+                click.echo(f"  Version: {version_str}")
+                click.echo(f"  Release: {slurm_info.get('release', 'unknown')}")
+                click.echo(f"  Cluster: {slurm_info.get('cluster', 'unknown')}")
             click.echo(f"  Thread count: {diag.get('server_thread_count', 0)}")
-            click.echo(f"  Agent count: {diag.get('agent_count', 0)}")
+            click.echo("")
+            
+            # Queue info
+            click.echo("Queue Information:")
+            click.echo(f"  Agent queue size: {diag.get('agent_queue_size', 0)}")
+            click.echo(f"  DBD agent queue size: {diag.get('dbd_agent_queue_size', 0)}")
+            click.echo(f"  Schedule queue length: {diag.get('schedule_queue_length', 0)}")
             click.echo("")
             
             # Job info
@@ -44,19 +64,16 @@ def show_diagnostics(format: str, curl: bool):
             click.echo(f"  Jobs completed: {diag.get('jobs_completed', 0)}")
             click.echo(f"  Jobs canceled: {diag.get('jobs_canceled', 0)}")
             click.echo(f"  Jobs failed: {diag.get('jobs_failed', 0)}")
+            click.echo(f"  Jobs pending: {diag.get('jobs_pending', 0)}")
+            click.echo(f"  Jobs running: {diag.get('jobs_running', 0)}")
             click.echo("")
             
             # Scheduler info
             click.echo("Scheduler Statistics:")
-            click.echo(f"  Cycles: {diag.get('schedule_cycle_count', 0)}")
-            click.echo(f"  Last cycle: {diag.get('schedule_cycle_last', 'unknown')}")
-            click.echo(f"  Queue length: {diag.get('schedule_queue_length', 0)}")
-            click.echo("")
-            
-            # Debug info
-            if diag.get('debug_flags', []):
-                click.echo("Debug Flags:")
-                for flag in diag['debug_flags']:
-                    click.echo(f"  - {flag}")
+            click.echo(f"  Cycles total: {diag.get('schedule_cycle_total', 0)}")
+            click.echo(f"  Cycles per minute: {diag.get('schedule_cycle_per_minute', 0)}")
+            click.echo(f"  Last cycle time: {diag.get('schedule_cycle_last', 0)} microseconds")
+            click.echo(f"  Max cycle time: {diag.get('schedule_cycle_max', 0)} microseconds")
+            click.echo(f"  Mean cycle time: {diag.get('schedule_cycle_mean', 0)} microseconds")
     except Exception as e:
         raise click.ClickException(str(e))

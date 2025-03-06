@@ -2,41 +2,69 @@
 from typing import Dict, Any, Optional, Union, List
 from dataclasses import dataclass
 from .base import BaseClient
-from .models import SlurmMeta
+from .models import SlurmMeta, SlurmResponse
 
 @dataclass
 class PartitionInfo:
     """Partition information"""
     name: str
-    nodes: Dict[str, Any]
-    partition: Dict[str, Any]
-    defaults: Dict[str, Any]
-    maximums: Dict[str, Any]
-    minimums: Dict[str, Any]
-    cpus: Dict[str, Any]
-    tres: Dict[str, Any]
-    accounts: Dict[str, Any] = None
-    groups: Dict[str, Any] = None
-    qos: Dict[str, Any] = None
-    timeouts: Dict[str, Any] = None
-    priority: Dict[str, Any] = None
-    cluster: str = ''
-    alternate: str = ''
-    node_sets: str = ''
-    grace_time: int = 0
+    nodes: Optional[Dict[str, Any]] = None
+    flags: Optional[Dict[str, Any]] = None
+    defaults: Optional[Dict[str, Any]] = None
+    maximums: Optional[Dict[str, Any]] = None
+    minimums: Optional[Dict[str, Any]] = None
+    cpus: Optional[Dict[str, Any]] = None
+    tres: Optional[Dict[str, Any]] = None
+    accounts: Optional[Dict[str, Any]] = None
+    groups: Optional[Dict[str, Any]] = None
+    qos: Optional[Dict[str, Any]] = None
+    timeouts: Optional[Dict[str, Any]] = None
+    priority: Optional[Dict[str, Any]] = None
+    cluster: Optional[str] = None
+    alternate: Optional[str] = None
+    node_sets: Optional[str] = None
+    grace_time: Optional[int] = None
     
     def __init__(self, **data):
-        # Set all fields from data
+        # Initialize with default values
         for field in self.__dataclass_fields__:
-            setattr(self, field, data.get(field))
+            setattr(self, field, None)
+        # Update with provided data
+        for key, value in data.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+                
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary"""
+        return {
+            field: getattr(self, field)
+            for field in self.__dataclass_fields__
+            if getattr(self, field) is not None
+        }
 
 @dataclass
-class PartitionResponse:
+class PartitionResponse(SlurmResponse):
     """Response for partition queries"""
-    meta: SlurmMeta
-    partitions: List[PartitionInfo]
-    errors: Optional[List[Dict[str, Any]]] = None
-    warnings: Optional[List[Dict[str, Any]]] = None
+    partitions: List[PartitionInfo] = None
+    last_update: Optional[int] = None
+    
+    def __init__(self, **data):
+        # Initialize parent
+        super().__init__(**data)
+        
+        # Convert partition data to PartitionInfo objects
+        partitions_data = data.get('partitions', [])
+        self.partitions = [PartitionInfo(**p) for p in partitions_data]
+        self.last_update = data.get('last_update')
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary"""
+        result = super().to_dict()
+        result.update({
+            'partitions': [p.to_dict() for p in self.partitions] if self.partitions else [],
+            'last_update': self.last_update
+        })
+        return result
 
 class PartitionClient(BaseClient):
     """Client for partition-related operations"""

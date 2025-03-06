@@ -148,12 +148,38 @@ class LastUpdate:
 class PartitionResponse(SlurmResponse):
     """Response structure for partition queries"""
     partitions: List[Dict[str, Any]] = None
+    last_update: Optional[Dict[str, Any]] = None
     
     def __init__(self, **data):
         # Initialize parent
         super().__init__(**data)
         
-        # Set partitions
-        self.partitions = data.get('partitions', [])
+        # Set partitions and process state flags
+        partitions = data.get('partitions', [])
+        for partition in partitions:
+            # Add state flags if not present
+            if 'flags' not in partition:
+                partition['flags'] = {'state': []}
+            # Process state flags from maximums.oversubscribe if available
+            if 'maximums' in partition and 'oversubscribe' in partition['maximums']:
+                oversubscribe = partition['maximums']['oversubscribe']
+                if 'flags' in oversubscribe:
+                    partition['flags']['state'] = oversubscribe['flags']
+                    if not partition['flags']['state']:
+                        partition['flags']['state'] = ['UP']
+                else:
+                    partition['flags']['state'] = ['UP']
+            else:
+                partition['flags']['state'] = ['UP']
         
-        # Ignore last_update and other fields
+        self.partitions = partitions
+        self.last_update = data.get('last_update')
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert response to dictionary"""
+        result = super().to_dict()
+        result.update({
+            'partitions': self.partitions,
+            'last_update': self.last_update
+        })
+        return result

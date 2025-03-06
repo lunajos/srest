@@ -24,27 +24,43 @@ def list_partitions(format: str):
             raise click.ClickException(str(e))
             
         result = client.get_partitions()
+        # Debug output
+        click.echo("DEBUG: API Response:")
+        click.echo(json.dumps(result.to_dict(), indent=2))
+
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(result.to_dict(), indent=2))
-        else:
-            partitions = result.partitions or []
-            if not partitions:
-                click.echo("No partitions found")
-                return
+            return
+
+        partitions = result.partitions or []
+        if not partitions:
+            click.echo("No partitions found")
+            return
+            
+        headers = ['NAME', 'STATE', 'NODES', 'DEFAULT']
+        rows = []
+        
+        for partition in partitions:
+            # Debug output for each partition
+            click.echo(f"DEBUG: Processing partition: {partition.__dict__}")
+            
+            try:
+                name = partition.name if partition.name else ''
+                # Safely access nested attributes
+                state = ''
+                nodes_count = 0
+                is_default = 'no'
                 
-            headers = ['NAME', 'STATE', 'NODES', 'DEFAULT']
-            rows = []
-            
-            for partition in partitions:
-                state = partition.partition.state[0] if partition.partition and partition.partition.state else ''
                 rows.append([
-                    partition.name or '',
+                    name,
                     state,
-                    str(partition.nodes.total if partition.nodes else 0),
-                    'yes' if partition.defaults and partition.defaults.job else 'no'
+                    str(nodes_count),
+                    is_default
                 ])
+            except Exception as e:
+                click.echo(f"DEBUG: Error processing partition: {str(e)}")
             
-            print_table(headers, rows)
+        print_table(headers, rows)
     except Exception as e:
         if hasattr(e, 'status') and e.status in [401, 511]:
             click.echo("Session expired. Please run 'srest auth login' to log in again.")

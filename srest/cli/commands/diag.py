@@ -14,34 +14,53 @@ def diag_group():
               default=OutputFormat.BASIC.value, help='Output format')
 @click.option('--curl', is_flag=True, help='Show curl command instead of executing')
 def show_version(format: str, curl: bool):
-    """Show slurmrestd API version"""
-    client = get_client()
+    """Show Slurm and REST API versions"""
+    try:
+        client = get_client()
+    except ValueError as e:
+        raise click.ClickException(str(e))
     
     try:
-        result = client.diag.get_versions(return_curl=curl)
+        # Get API version
+        api_version = client.diag.get_versions(return_curl=curl)
         if curl:
-            click.echo(result)
+            click.echo("# Get API version")
+            click.echo(api_version)
+            click.echo("\n# Get Slurm version")
+            diag_result = client.diag.get_diagnostics(return_curl=curl)
+            click.echo(diag_result)
             return
-            
+        
+        # Get Slurm version from diagnostics
+        diag_result = client.diag.get_diagnostics()
+        if isinstance(diag_result, dict):
+            meta = diag_result.get('meta', {})
+        else:
+            meta = diag_result.meta.to_dict() if diag_result.meta else {}
+        
+        slurm_info = meta.get('slurm', {})
+        version = slurm_info.get('version', {})
+        version_str = f"{version.get('major', '0')}.{version.get('minor', '0')}.{version.get('micro', '0')}"
+        release = slurm_info.get('release', 'unknown')
+        cluster = slurm_info.get('cluster', 'unknown')
+        
         if format == OutputFormat.JSON.value:
+            result = {
+                'api_version': api_version,
+                'slurm': {
+                    'version': version_str,
+                    'release': release,
+                    'cluster': cluster
+                }
+            }
             click.echo(json.dumps(result, indent=2))
         else:
-            if not isinstance(result, dict):
-                click.echo("Invalid OpenAPI specification format")
-                return
-                
-            info = result.get('info', {})
-            version = info.get('version')
-            title = info.get('title')
-            description = info.get('description')
-            
-            click.echo("Slurm REST API Information:")
-            if title:
-                click.echo(f"  Title: {title}")
-            if version:
-                click.echo(f"  Version: {version}")
-            if description:
-                click.echo(f"  Description: {description}")
+            click.echo("REST API Version:")
+            click.echo(f"  Version: {api_version}")
+            click.echo("\nSlurm Version:")
+            click.echo(f"  Version: {version_str}")
+            click.echo(f"  Release: {release}")
+            click.echo(f"  Cluster: {cluster}")
     except Exception as e:
         raise click.ClickException(str(e))
 

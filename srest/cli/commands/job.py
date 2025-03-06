@@ -1,7 +1,7 @@
 import click
 import json
 import os
-from typing import Dict, Any, cast
+from typing import Dict, Any, cast, Union
 from ...client import get_client
 from ...parsers.submit import SlurmDirectiveParser, OutputFormat
 from swagger_client.models import V0036JobSubmissionResponse, V0036JobsResponse
@@ -15,16 +15,20 @@ def format_job_submission(result: V0036JobSubmissionResponse, output_format: Out
     else:
         return f"Submitted batch job {result.job_id}"
 
-def format_time(minutes: int) -> str:
+def format_time(minutes: Any) -> str:
     """Format time in minutes to readable string"""
-    if minutes == 0:
+    if not minutes or minutes == 0:
         return 'UNLIMITED'
-    days = minutes // 1440
-    hours = (minutes % 1440) // 60
-    mins = minutes % 60
-    if days > 0:
-        return f"{days}-{hours:02d}:{mins:02d}"
-    return f"{hours:02d}:{mins:02d}"
+    try:
+        mins = int(minutes)
+        days = mins // 1440
+        hours = (mins % 1440) // 60
+        remaining_mins = mins % 60
+        if days > 0:
+            return f"{days}-{hours:02d}:{remaining_mins:02d}"
+        return f"{hours:02d}:{remaining_mins:02d}"
+    except (ValueError, TypeError):
+        return 'UNKNOWN'
 
 @click.group(name='job')
 def jobs_group():
@@ -115,44 +119,52 @@ def list_jobs(user: str, partition: str, state: str, format: str):
         result = client.get_jobs()
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(result, indent=2))
+            return
+
+        if isinstance(result, dict):
+            jobs = result.get('jobs', [])
         else:
-            result = cast(V0036JobsResponse, result)
-            jobs = result.jobs or []
-            if not jobs:
-                click.echo("No jobs found")
-                return
-                
-            headers = ['JOBID', 'NAME', 'USER', 'PARTITION', 'STATE', 'TIME', 'NODES']
-            rows = []
+            jobs = result.jobs if hasattr(result, 'jobs') else []
+
+        if not jobs:
+            click.echo("No jobs found")
+            return
             
-            for job in jobs:
-                rows.append([
-                    str(job.job_id),
-                    job.name or '',
-                    job.user_name or '',
-                    job.partition or '',
-                    job.job_state or '',
-                    format_time(job.time_limit or 0),
-                    str(job.nodes or '')
-                ])
+        headers = ['JOBID', 'NAME', 'USER', 'PARTITION', 'STATE', 'TIME', 'NODES']
+        rows = []
+        
+        for job in jobs:
+            job_data = job if isinstance(job, dict) else job.to_dict()
+            state = job_data.get('job_state', '')
+            # Handle case where state is a list
+            if isinstance(state, list):
+                state = state[0] if state else ''
+            rows.append([
+                str(job_data.get('job_id', '')),
+                job_data.get('name', ''),
+                job_data.get('user_name', ''),
+                job_data.get('partition', ''),
+                state,
+                format_time(job_data.get('time_limit', 0)),
+                str(job_data.get('nodes', ''))
+            ])
             
-            # Print table
-            widths = [max(len(str(row[i])) for row in [headers] + rows)
-                     for i in range(len(headers))]
-            
-            # Print headers
-            for i, header in enumerate(headers):
-                click.echo(f"{header:{widths[i]}}", nl=False)
-                click.echo(" " if i < len(headers)-1 else "")
-            
-            # Print separator
-            click.echo("-" * sum(widths))
-            
-            # Print rows
-            for row in rows:
-                for i, cell in enumerate(row):
-                    click.echo(f"{cell:{widths[i]}}", nl=False)
-                    click.echo(" " if i < len(row)-1 else "")
+        # Print table
+        rows = [[str(cell) for cell in row] for row in rows]  # Convert all cells to strings
+        widths = [max(len(row[i]) for row in [headers] + rows)
+                 for i in range(len(headers))]
+        
+        # Print headers
+        header_line = "  ".join(f"{header:<{widths[i]}}" for i, header in enumerate(headers))
+        click.echo(header_line)
+        
+        # Print separator
+        click.echo("-" * len(header_line))
+        
+        # Print rows
+        for row in rows:
+            row_line = "  ".join(f"{cell:<{widths[i]}}" for i, cell in enumerate(row))
+            click.echo(row_line)
                     
     except Exception as e:
         raise click.ClickException(str(e))

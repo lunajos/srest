@@ -12,7 +12,8 @@ def partitions_group():
 @partitions_group.command('list')
 @click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
               default=OutputFormat.BASIC.value, help='Output format')
-def list_partitions(format: str):
+@click.option('--curl', is_flag=True, help='Output curl command with JWT and headers')
+def list_partitions(format: str, curl: bool):
     """List partitions"""
     try:
         try:
@@ -22,6 +23,12 @@ def list_partitions(format: str):
                 click.echo("Session expired. Please run 'srest auth login' to log in again.")
                 return
             raise click.ClickException(str(e))
+            
+        if curl:
+            curl_command = client.get_partitions(return_curl=True)
+            click.echo('# Run this command to list partitions using curl:')
+            click.echo(curl_command)
+            return
             
         result = client.get_partitions()
         if format == OutputFormat.JSON.value:

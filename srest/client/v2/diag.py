@@ -105,11 +105,40 @@ class DiagClient(BaseClient):
             return_curl=return_curl
         )
         
-    def get_versions(self, return_curl: bool = False) -> Dict[str, Any]:
+    def _extract_latest_version(self, spec: Dict[str, Any]) -> str:
+        """Extract the latest API version from OpenAPI spec paths
+        
+        Args:
+            spec: OpenAPI specification dictionary
+            
+        Returns:
+            Latest API version (e.g., 'v0.0.42')
+            
+        Raises:
+            SlurmError: If no API versions found in spec
+        """
+        versions = set()
+        for path in spec.get('paths', {}).keys():
+            if path.startswith('/slurm/v'):
+                version = path.split('/')[2]  # Get version part
+                versions.add(version)
+        
+        if not versions:
+            raise SlurmError(
+                error_code=None,
+                message="No API versions found in OpenAPI spec"
+            )
+        
+        return max(versions)
+    
+    def get_versions(self, return_curl: bool = False) -> Union[str, Dict[str, Any]]:
         """Get slurmrestd API version from OpenAPI spec
         
         Returns:
-            OpenAPI specification containing version information
+            If return_curl is True, returns curl command string
+            Otherwise returns the latest API version (e.g., 'v0.0.42')
+        
+        The version is extracted from the API paths in the OpenAPI spec.
         """
         # OpenAPI spec is at the root URL /openapi/v3
         try:
@@ -123,13 +152,24 @@ class DiagClient(BaseClient):
             curl_parts = ["curl -X GET"]
             if not self.config.verify_ssl:
                 curl_parts.append("-k")
+            
+            # Add essential headers from session
+            essential_headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': self.session.headers.get('Authorization', '')
+            }
+            for header, value in essential_headers.items():
+                if value:  # Only add if value is not empty
+                    curl_parts.append(f"-H '{header}: {value}'")
+            
             curl_parts.append(f"'{url}'")
             return ' '.join(curl_parts)
             
         try:
             response = self.session.get(url, timeout=30)
             response.raise_for_status()
-            return response.json()
+            return self._extract_latest_version(response.json())
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
                 # Try the older endpoint at /openapi.json
@@ -137,7 +177,7 @@ class DiagClient(BaseClient):
                     url = f"{base_url}/openapi.json"
                     response = self.session.get(url, timeout=30)
                     response.raise_for_status()
-                    return response.json()
+                    return self._extract_latest_version(response.json())
                 except Exception as inner_e:
                     raise SlurmError(
                         error_code=None,

@@ -64,16 +64,10 @@ def detect_api_version(set: bool):
     
     try:
         client = get_client()
-        spec = client.diag.get_versions()
-        
-        if not isinstance(spec, dict):
-            raise click.ClickException("Invalid OpenAPI specification format")
-            
-        info = spec.get('info', {})
-        version = info.get('version')
+        version = client.diag.get_versions()
         
         if not version:
-            raise click.ClickException("No version found in OpenAPI specification")
+            raise click.ClickException("No API version detected")
             
         click.echo(f"Detected API version: {version}")
         

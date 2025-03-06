@@ -1,4 +1,10 @@
-"""Authentication commands"""
+"""Authentication commands for Slurm REST API v0.0.42
+
+Supports:
+- Bearer Authentication (JWT)
+- User + Token headers (X-SLURM-USER-NAME + X-SLURM-USER-TOKEN)
+- Token only (X-SLURM-USER-TOKEN)
+"""
 import click
 from datetime import datetime
 from ...auth import login as auth_login, logout as auth_logout, get_token_info
@@ -14,6 +20,12 @@ def auth_group():
 @click.option('--username', prompt=True)
 @click.option('--password', prompt=True, hide_input=True)
 def login(username: str, password: str):
+    """Login and get authentication token
+    
+    Uses Bearer Authentication (JWT) by default. For other methods:
+    - User + Token: Set auth.user_token=true in config
+    - Token only: Set auth.token_only=true in config
+    """
     """Login to Keycloak and update auth status"""
     token_info = auth_login(username, password)
     
@@ -38,6 +50,7 @@ def logout():
 @click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
               default=OutputFormat.BASIC.value, help='Output format')
 def show_token(format: str):
+    """Show current token information"""
     """Show current token information"""
     auth_status = AuthStatus()
     

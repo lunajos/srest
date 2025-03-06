@@ -1,16 +1,23 @@
-"""Authentication module"""
+"""Authentication module for Slurm REST API v0.0.42"""
 import os
 import json
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import jwt
+import requests
 from ..config import Config
 
 TOKEN_DIR = os.path.expanduser("~/.config/srest")
 TOKEN_FILE = os.path.join(TOKEN_DIR, "token.json")
 
 def login(username: str, password: str) -> Dict[str, Any]:
-    """Login and save token. Returns token information dictionary."""
+    """Login and save token. Returns token information dictionary.
+    
+    Supports Slurm REST API v0.0.42 authentication methods:
+    1. Bearer Authentication (JWT)
+    2. User + Token headers (X-SLURM-USER-NAME + X-SLURM-USER-TOKEN)
+    3. Token only (X-SLURM-USER-TOKEN)
+    """
     config = Config()
     
     # Get auth server URL

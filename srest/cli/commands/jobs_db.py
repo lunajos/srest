@@ -47,34 +47,58 @@ def sacct_group():
 @click.option('--jobs', help='Show jobs with these job IDs (comma separated)')
 @click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
               default=OutputFormat.BASIC.value, help='Output format')
-def list_jobs(starttime: str, endtime: str, user: str, account: str, jobs: str, format: str):
+@click.option('--curl', is_flag=True, help='Output curl command with JWT and headers')
+def list_jobs(starttime: str, endtime: str, user: str, account: str, jobs: str, format: str, curl: bool):
     """List job accounting records"""
-    client = get_client().db
-    
-    # Parse times
-    start_time = None
-    end_time = None
-    
-    if starttime:
-        try:
-            start_time = datetime.fromisoformat(starttime)
-        except ValueError:
-            raise click.ClickException(f"Invalid start time format: {starttime}")
-            
-    if endtime:
-        try:
-            end_time = datetime.fromisoformat(endtime)
-        except ValueError:
-            raise click.ClickException(f"Invalid end time format: {endtime}")
-    
-    # Default to last 24 hours if no time range specified
-    if not start_time and not end_time:
-        end_time = datetime.now()
-        start_time = end_time - timedelta(days=1)
-    
     try:
+        client = get_client().db
+        
+        # Parse times
+        start_time = None
+        end_time = None
+        
+        if starttime:
+            try:
+                start_time = datetime.fromisoformat(starttime)
+            except ValueError:
+                raise click.ClickException(f"Invalid start time format: {starttime}")
+                
+        if endtime:
+            try:
+                end_time = datetime.fromisoformat(endtime)
+            except ValueError:
+                raise click.ClickException(f"Invalid end time format: {endtime}")
+        
+        # Default to last 24 hours if no time range specified
+        if not start_time and not end_time:
+            end_time = datetime.now()
+            start_time = end_time - timedelta(days=1)
+        
         # Split job IDs if provided
         job_ids = jobs.split(',') if jobs else None
+        
+        if curl:
+            # Return curl command for first job ID or general query
+            if job_ids:
+                curl_command = client.get_jobs(
+                    start_time=start_time,
+                    end_time=end_time,
+                    user=user,
+                    account=account,
+                    job_id=job_ids[0],
+                    return_curl=True
+                )
+            else:
+                curl_command = client.get_jobs(
+                    start_time=start_time,
+                    end_time=end_time,
+                    user=user,
+                    account=account,
+                    return_curl=True
+                )
+            click.echo('# Run this command to get job accounting records using curl:')
+            click.echo(curl_command)
+            return
         
         # Make request for each job ID
         all_jobs = []
@@ -96,7 +120,7 @@ def list_jobs(starttime: str, endtime: str, user: str, account: str, jobs: str, 
                 account=account
             )
             all_jobs = result.jobs
-            
+                
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(all_jobs, indent=2))
         else:
@@ -104,27 +128,40 @@ def list_jobs(starttime: str, endtime: str, user: str, account: str, jobs: str, 
                 click.echo("No jobs found")
                 return
                 
-            headers = ['JOBID', 'NAME', 'USER', 'ACCOUNT', 'STATE', 'START', 'END', 'ELAPSED', 'NCPUS', 'MEMORY']
+            headers = ['JobID', 'JobName', 'Partition', 'Account', 'AllocCPUS', 'State', 'ExitCode']
             rows = []
             
             for job in all_jobs:
-                # Format times
-                start = datetime.fromtimestamp(job.get('start_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if job.get('start_time') else ''
-                end = datetime.fromtimestamp(job.get('end_time', 0)).strftime('%Y-%m-%d %H:%M:%S') if job.get('end_time') else ''
-                elapsed = format_time(job.get('elapsed', 0))
+                # Get job ID and array task info
+                job_id = str(job.get('job_id', ''))
+                array_task_id = job.get('array_task_id')
+                if array_task_id is not None:
+                    job_id = f"{job_id}_{array_task_id}"
                 
+                # Add main job entry
                 rows.append([
-                    str(job.get('job_id', '')),
-                    job.get('name', ''),
-                    job.get('user_name', ''),
+                    job_id,
+                    job.get('name', '')[:8] + '+' if len(job.get('name', '')) > 8 else job.get('name', ''),
+                    job.get('partition', ''),
                     job.get('account', ''),
+                    str(job.get('ncpus', 1)),
                     job.get('state', ''),
-                    start,
-                    end,
-                    elapsed,
-                    str(job.get('ncpus', '')),
-                    format_memory(job.get('memory', 0))
+                    f"{job.get('exit_code', 0)}:{job.get('signal_number', 0)}"
                 ])
+                
+                # Add batch step if present
+                if job.get('steps'):
+                    for step in job['steps']:
+                        if step.get('step_id') == 'batch':
+                            rows.append([
+                                f"{job_id}.batch",
+                                'batch',
+                                '',  # Partition not shown for batch step
+                                '',  # Account not shown for batch step
+                                str(step.get('ncpus', 1)),
+                                step.get('state', ''),
+                                f"{step.get('exit_code', 0)}:{step.get('signal_number', 0)}"
+                            ])
             
             # Print table
             widths = [max(len(str(row[i])) for row in [headers] + rows)
@@ -144,5 +181,10 @@ def list_jobs(starttime: str, endtime: str, user: str, account: str, jobs: str, 
                     click.echo(f"{cell:{widths[i]}}", nl=False)
                     click.echo(" " if i < len(row)-1 else "")
                     
+    except ValueError as e:
+        if "Not logged in" in str(e):
+            click.echo("Session expired. Please run 'srest auth login' to log in again.")
+            return
+        raise click.ClickException(str(e))
     except Exception as e:
         raise click.ClickException(str(e))

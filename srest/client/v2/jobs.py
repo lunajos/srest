@@ -105,7 +105,7 @@ class JobClient(BaseClient):
             
         return self._make_request(
             method='POST',
-            endpoint='/job/submit',
+            endpoint='job/submit',
             response_type=JobSubmitResponse,
             json=payload,
             return_curl=return_curl
@@ -131,7 +131,7 @@ class JobClient(BaseClient):
             
         return self._make_request(
             method='GET',
-            endpoint='/jobs',
+            endpoint='job',
             response_type=JobResponse,
             params=params,
             return_curl=return_curl
@@ -153,7 +153,7 @@ class JobClient(BaseClient):
         """
         return self._make_request(
             method='GET',
-            endpoint=f'/jobs/{job_id}',
+            endpoint=f'job/{job_id}',
             response_type=JobResponse,
             return_curl=return_curl
         )
@@ -176,7 +176,7 @@ class JobClient(BaseClient):
         """
         return self._make_request(
             method='DELETE',
-            endpoint=f'/jobs/{job_id}',
+            endpoint=f'job/{job_id}',
             response_type=JobResponse,
             params={'signal': signal},
             return_curl=return_curl

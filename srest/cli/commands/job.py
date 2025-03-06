@@ -179,68 +179,129 @@ def show_job(job_id: str, format: str):
     try:
         result = client.get_job(job_id)
         if format == OutputFormat.JSON.value:
-            # Add queue position if job is pending
-            if result.get('job_state') == 'PENDING':
-                queue_info = client.get_queue_position(job_id)
-                result['queue_info'] = queue_info
-            click.echo(json.dumps(result, indent=2))
+            if isinstance(result, dict):
+                # Handle dictionary response
+                if result.get('jobs') and result['jobs'][0]:
+                    job = result['jobs'][0]
+                else:
+                    job = result
+            else:
+                # Handle response object
+                job_dict = result.to_dict()
+                if not job_dict.get('jobs') or not job_dict['jobs'][0]:
+                    click.echo("Job not found")
+                    return
+                job = job_dict['jobs'][0]
         else:
             # Basic format - show key details
-            result = cast(V0036JobsResponse, result)
-            if not result.jobs or not result.jobs[0]:
-                click.echo("Job not found")
-                return
+            if isinstance(result, dict):
+                # Handle dictionary response
+                job = result
+            else:
+                # Handle response object
+                job_dict = result.to_dict()
+                if not job_dict.get('jobs') or not job_dict['jobs'][0]:
+                    click.echo("Job not found")
+                    return
+                job = job_dict['jobs'][0]
                 
-            job = result.jobs[0]
-            click.echo(f"Job ID: {job.job_id}")
-            click.echo(f"Name: {job.name}")
-            click.echo(f"User: {job.user_name}")
-            click.echo(f"Account: {job.account}")
-            click.echo(f"Partition: {job.partition}")
-            click.echo(f"QOS: {job.qos}")
-            click.echo(f"State: {job.job_state}")
+            # Basic info
+            click.echo(f"Job ID: {job.get('job_id', 'N/A')}")
+            click.echo(f"Name: {job.get('name', 'N/A')}")
+            click.echo(f"User: {job.get('user_name', 'N/A')}")
+            click.echo(f"Account: {job.get('account', 'N/A')}")
+            click.echo(f"Partition: {job.get('partition', 'N/A')}")
+            click.echo(f"QOS: {job.get('qos', 'N/A')}")
             
-            # Show queue position if pending
-            if job.job_state == 'PENDING':
-                # Queue position not supported in v3 yet
-                click.echo(f"Reason: {job.state_reason}")
+            # Get job state
+            exit_code = job.get('exit_code', {})
+            if isinstance(exit_code, dict):
+                status = exit_code.get('status', [])
+                state = status[0] if status else 'N/A'
+            else:
+                state = str(exit_code)
+            click.echo(f"State: {state}")
             
-            click.echo(f"Working Directory: {job.work_dir}")
-            click.echo(f"Command: {job.command}")
+            # Show reason if pending
+            if state == 'PENDING':
+                click.echo(f"Reason: {job.get('state_reason', 'N/A')}")
+            
+            click.echo(f"Working Directory: {job.get('current_working_directory', 'N/A')}")
+            click.echo(f"Command: {job.get('command', 'N/A')}")
             
             # Resources
             click.echo("\nResources:")
-            click.echo(f"  Nodes: {job.nodes}")
-            click.echo(f"  CPUs per Task: {job.cpus_per_task}")
-            click.echo(f"  Memory: {job.memory_per_node}")
-            click.echo(f"  Time Limit: {format_time(job.time_limit or 0)}")
+            nodes = job.get('node_count', {})
+            if isinstance(nodes, dict):
+                node_count = nodes.get('number', 'N/A')
+            else:
+                node_count = str(nodes)
+            click.echo(f"  Nodes: {node_count}")
+            
+            cpus = job.get('cpus_per_task', {})
+            if isinstance(cpus, dict):
+                cpu_count = cpus.get('number', 'N/A')
+            else:
+                cpu_count = str(cpus)
+            click.echo(f"  CPUs per Task: {cpu_count}")
+            
+            mem = job.get('memory_per_node', {})
+            if isinstance(mem, dict):
+                memory = mem.get('number', 'N/A')
+            else:
+                memory = str(mem)
+            click.echo(f"  Memory per Node: {memory}")
+            
+            time_limit = job.get('time_limit', {})
+            if isinstance(time_limit, dict):
+                limit = time_limit.get('number', 0)
+            else:
+                limit = time_limit
+            click.echo(f"  Time Limit: {format_time(limit)}")
             
             # Time info
-            if job.get('start_time'):
-                click.echo(f"\nStart Time: {job.get('start_time')}")
-            if job.get('end_time'):
-                click.echo(f"End Time: {job.get('end_time')}")
-            if job.get('submit_time'):
-                click.echo(f"Submit Time: {job.get('submit_time')}")
+            start_time = job.get('start_time', {})
+            if isinstance(start_time, dict):
+                start = start_time.get('number')
+                if start:
+                    from datetime import datetime
+                    click.echo(f"\nStart Time: {datetime.fromtimestamp(start)}")
+            
+            end_time = job.get('end_time', {})
+            if isinstance(end_time, dict):
+                end = end_time.get('number')
+                if end:
+                    from datetime import datetime
+                    click.echo(f"End Time: {datetime.fromtimestamp(end)}")
+            
+            submit_time = job.get('submit_time', {})
+            if isinstance(submit_time, dict):
+                submit = submit_time.get('number')
+                if submit:
+                    from datetime import datetime
+                    click.echo(f"Submit Time: {datetime.fromtimestamp(submit)}")
             
             # Dependencies
-            if job.get('dependencies'):
-                click.echo(f"\nDependencies: {job.get('dependencies')}")
+            if job.get('dependency'):
+                click.echo(f"\nDependencies: {job.get('dependency')}")
             
             # Array info
-            if job.get('array_job_id'):
-                click.echo(f"\nArray Job ID: {job.get('array_job_id')}")
-                click.echo(f"Array Task ID: {job.get('array_task_id')}")
+            array_job = job.get('array_job_id', {})
+            array_task = job.get('array_task_id', {})
+            if isinstance(array_job, dict) and array_job.get('number'):
+                click.echo(f"\nArray Job ID: {array_job.get('number')}")
+                if isinstance(array_task, dict):
+                    click.echo(f"Array Task ID: {array_task.get('number')}")
             
             # MCS info
             if job.get('mcs_label'):
                 click.echo(f"\nMCS Label: {job.get('mcs_label')}")
             
-            # Show any error message
-            if job.get('stderr_path'):
-                click.echo(f"\nStderr Path: {job.get('stderr_path')}")
-            if job.get('stdout_path'):
-                click.echo(f"\nStdout Path: {job.get('stdout_path')}")
+            # Show I/O paths
+            if job.get('standard_error'):
+                click.echo(f"\nStderr Path: {job.get('standard_error')}")
+            if job.get('standard_output'):
+                click.echo(f"\nStdout Path: {job.get('standard_output')}")
             
     except Exception as e:
         raise click.ClickException(str(e))

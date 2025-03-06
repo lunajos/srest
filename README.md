@@ -37,6 +37,90 @@ cd srest
 pip install -e .
 ```
 
+## Building for Distribution
+
+To build srest for distribution, you'll need Python 3.7 or later and the latest pip version.
+
+### Build Configuration Files
+
+The project includes several configuration files for building and distribution:
+
+- `setup.py`: Main package configuration and metadata
+- `pyproject.toml`: Build system requirements and development tool configurations
+- `MANIFEST.in`: Controls which files are included in the source distribution
+- `requirements.txt`: Package dependencies (optional, dependencies can also be specified in setup.py)
+
+### Setting up the Build Environment
+
+```bash
+# Install build dependencies
+pip install -e .[dev]
+
+# Or install them manually
+pip install build twine pytest black isort mypy
+```
+
+### Building the Package
+
+```bash
+# Clean previous builds
+rm -rf build/ dist/ *.egg-info/
+
+# Build source distribution and wheel
+python -m build
+```
+
+This will create two files in the `dist/` directory:
+- `slurmrest-0.1.0.tar.gz`: Source distribution
+- `slurmrest-0.1.0-py3-none-any.whl`: Wheel distribution
+
+### Testing the Build
+
+```bash
+# Run tests
+python -m pytest
+
+# Run type checking
+mypy srest
+
+# Check code formatting
+black --check srest
+isort --check-only srest
+```
+
+### Uploading to PyPI
+
+```bash
+# Test upload to TestPyPI first
+python -m twine upload --repository testpypi dist/*
+
+# If everything looks good, upload to PyPI
+python -m twine upload dist/*
+```
+
+### Installing from Local Build
+
+```bash
+# Install from wheel
+pip install dist/slurmrest-0.1.0-py3-none-any.whl
+
+# Or install from source distribution
+pip install dist/slurmrest-0.1.0.tar.gz
+```
+
+### Development Installation
+
+For development, install in editable mode with development dependencies:
+
+```bash
+# Clone the repository
+git clone https://github.com/lunajos/srest.git
+cd srest
+
+# Install in editable mode with dev dependencies
+pip install -e .[dev]
+```
+
 ## Usage
 
 ### Job Submission

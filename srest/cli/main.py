@@ -3,12 +3,12 @@ import click
 import logging
 import warnings
 import urllib3
-from .commands import (
+from srest.cli.commands import (
     jobs_group, nodes_group, partitions_group, reservations_group,
     licenses_group, diag_group, accounts_group,
     config_group, auth_group
 )
-from .commands.jobs_db import sacct_group
+from srest.cli.commands.jobs_db import sacct_group
 
 # Disable urllib3 warnings about LibreSSL
 warnings.filterwarnings('ignore', category=urllib3.exceptions.NotOpenSSLWarning)

@@ -174,7 +174,7 @@ class JobClient(BaseClient):
         """
         return self._make_request(
             method='DELETE',
-            endpoint=f'/jobs/{job_id}',
+            endpoint=f'/job/{job_id}',
             response_type=JobResponse,
             params={'signal': 'SIGTERM'},
             return_curl=return_curl

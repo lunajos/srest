@@ -1,7 +1,8 @@
 """Diagnostic client"""
 from typing import Dict, Any, Optional, Union, List
+import requests
 from .base import BaseClient
-from .models import SlurmResponse
+from .models import SlurmResponse, SlurmError
 from dataclasses import dataclass
 
 @dataclass
@@ -110,8 +111,13 @@ class DiagClient(BaseClient):
         Returns:
             OpenAPI specification containing version information
         """
-        # OpenAPI spec is at the root with .json extension
-        url = self._get_url('openapi.json')
+        # OpenAPI spec is at the root URL /openapi/v3
+        try:
+            base_url = self.config.base_url.split('/slurm/')[0]  # Get base URL without version
+        except IndexError:
+            # If URL doesn't contain '/slurm/', use the whole URL as base
+            base_url = self.config.base_url.rstrip('/')
+        url = f"{base_url}/openapi/v3"
         
         if return_curl:
             curl_parts = ["curl -X GET"]
@@ -124,6 +130,23 @@ class DiagClient(BaseClient):
             response = self.session.get(url, timeout=30)
             response.raise_for_status()
             return response.json()
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                # Try the older endpoint at /openapi.json
+                try:
+                    url = f"{base_url}/openapi.json"
+                    response = self.session.get(url, timeout=30)
+                    response.raise_for_status()
+                    return response.json()
+                except Exception as inner_e:
+                    raise SlurmError(
+                        error_code=None,
+                        message=f"Failed to get OpenAPI spec from both /openapi/v3 and /openapi.json: {str(e)} and {str(inner_e)}"
+                    )
+            raise SlurmError(
+                error_code=None,
+                message=f"Failed to get OpenAPI spec: {str(e)}"
+            )
         except Exception as e:
             raise SlurmError(
                 error_code=None,

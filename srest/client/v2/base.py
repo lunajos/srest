@@ -91,8 +91,8 @@ class BaseClient:
         """Get full URL for endpoint"""
         # Normalize URL parts
         base_url = self.config.base_url.rstrip('/')
-        api_path = f"/slurm/{self.config.api_version}"
         endpoint = endpoint.lstrip('/')
+        api_path = f"/slurm/{self.config.api_version}"
         
         # Construct full URL ensuring no double slashes
         return f"{base_url}{api_path}/{endpoint}"

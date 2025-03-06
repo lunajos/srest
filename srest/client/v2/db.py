@@ -72,7 +72,7 @@ class DbClient(BaseClient):
             
         return self._make_request(
             method='GET',
-            endpoint='/slurmdb/v0.0.36/jobs',
+            endpoint='slurmdb/v0.0.36/jobs',
             response_type=JobAccountingResponse,
             params=params,
             return_curl=return_curl
@@ -93,7 +93,7 @@ class DbClient(BaseClient):
         """
         return self._make_request(
             method='GET',
-            endpoint='/slurmdb/v0.0.36/accounts',
+            endpoint='slurmdb/v0.0.36/accounts',
             response_type=AccountResponse,
             params={'user': user} if user else None,
             return_curl=return_curl

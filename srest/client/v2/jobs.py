@@ -161,14 +161,12 @@ class JobClient(BaseClient):
     def cancel_job(
         self,
         job_id: str,
-        signal: str = 'SIGTERM',
         return_curl: bool = False
     ) -> Union[JobResponse, str]:
         """Cancel a job
         
         Args:
             job_id: Job ID to cancel
-            signal: Signal to send (default: SIGTERM)
             return_curl: If True, return curl command instead of cancelling
             
         Returns:
@@ -178,6 +176,5 @@ class JobClient(BaseClient):
             method='DELETE',
             endpoint=f'job/{job_id}',
             response_type=JobResponse,
-            params={'signal': signal},
             return_curl=return_curl
         )

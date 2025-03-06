@@ -78,6 +78,11 @@ class PingResponse(SlurmResponse):
     """Response for ping queries"""
     ping: Dict[str, Any] = None  # Make ping optional to match parent class pattern
 
+@dataclass
+class OpenAPIVersionsResponse(SlurmResponse):
+    """Response for OpenAPI versions query"""
+    versions: List[str] = None
+
 class DiagClient(BaseClient):
     """Client for diagnostic operations"""
     
@@ -98,3 +103,29 @@ class DiagClient(BaseClient):
             response_type=PingResponse,
             return_curl=return_curl
         )
+        
+    def get_versions(self, return_curl: bool = False) -> Dict[str, Any]:
+        """Get slurmrestd API version from OpenAPI spec
+        
+        Returns:
+            OpenAPI specification containing version information
+        """
+        # OpenAPI spec is at the root with .json extension
+        url = self._get_url('openapi.json')
+        
+        if return_curl:
+            curl_parts = ["curl -X GET"]
+            if not self.config.verify_ssl:
+                curl_parts.append("-k")
+            curl_parts.append(f"'{url}'")
+            return ' '.join(curl_parts)
+            
+        try:
+            response = self.session.get(url, timeout=30)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            raise SlurmError(
+                error_code=None,
+                message=f"Failed to get OpenAPI spec: {str(e)}"
+            )

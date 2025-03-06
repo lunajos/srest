@@ -9,6 +9,42 @@ def diag_group():
     """Diagnostic commands"""
     pass
 
+@diag_group.command('version')
+@click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
+              default=OutputFormat.BASIC.value, help='Output format')
+@click.option('--curl', is_flag=True, help='Show curl command instead of executing')
+def show_version(format: str, curl: bool):
+    """Show slurmrestd API version"""
+    client = get_client()
+    
+    try:
+        result = client.diag.get_versions(return_curl=curl)
+        if curl:
+            click.echo(result)
+            return
+            
+        if format == OutputFormat.JSON.value:
+            click.echo(json.dumps(result, indent=2))
+        else:
+            if not isinstance(result, dict):
+                click.echo("Invalid OpenAPI specification format")
+                return
+                
+            info = result.get('info', {})
+            version = info.get('version')
+            title = info.get('title')
+            description = info.get('description')
+            
+            click.echo("Slurm REST API Information:")
+            if title:
+                click.echo(f"  Title: {title}")
+            if version:
+                click.echo(f"  Version: {version}")
+            if description:
+                click.echo(f"  Description: {description}")
+    except Exception as e:
+        raise click.ClickException(str(e))
+
 @diag_group.command('show')
 @click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
               default=OutputFormat.BASIC.value, help='Output format')

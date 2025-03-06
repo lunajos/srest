@@ -55,3 +55,31 @@ def delete_config(key: str):
     config.delete(key)
     config.save()
     click.echo(f"Deleted {key}")
+
+@config_group.command('detect-api-version')
+@click.option('--set/--no-set', default=True, help='Set detected version in config')
+def detect_api_version(set: bool):
+    """Detect API version from server and optionally set it in config"""
+    from ...client import get_client
+    
+    try:
+        client = get_client()
+        spec = client.diag.get_versions()
+        
+        if not isinstance(spec, dict):
+            raise click.ClickException("Invalid OpenAPI specification format")
+            
+        info = spec.get('info', {})
+        version = info.get('version')
+        
+        if not version:
+            raise click.ClickException("No version found in OpenAPI specification")
+            
+        click.echo(f"Detected API version: {version}")
+        
+        if set:
+            config = Config()
+            config.set('slurm.api_version', version)
+            click.echo(f"Set slurm.api_version = {version}")
+    except Exception as e:
+        raise click.ClickException(str(e))

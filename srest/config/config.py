@@ -17,6 +17,7 @@ class Config:
         self.defaults = {
             'slurm': {
                 'url': os.environ.get('SREST_URL', ''),
+                'api_version': 'v0.0.42',  # Default API version
             },
             'auth': {
                 'type': 'keycloak',
@@ -95,3 +96,34 @@ class Config:
                 self._merge_dicts(dict1[key], dict2[key])
             else:
                 dict1[key] = dict2[key]
+                
+    def delete(self, key: str):
+        """Delete configuration value"""
+        parts = key.split('.')
+        config = self.config
+        
+        # Navigate to parent of target key
+        for part in parts[:-1]:
+            if not isinstance(config, dict) or part not in config:
+                return
+            config = config[part]
+            
+        # Delete the key if it exists
+        if isinstance(config, dict) and parts[-1] in config:
+            del config[parts[-1]]
+            self._save_config()
+            
+    def get_all(self) -> Dict:
+        """Get all configuration values"""
+        # Flatten config into dot notation
+        def flatten_dict(d: Dict, prefix: str = '') -> Dict:
+            items = {}
+            for k, v in d.items():
+                new_key = f"{prefix}{k}" if prefix else k
+                if isinstance(v, dict):
+                    items.update(flatten_dict(v, f"{new_key}."))
+                else:
+                    items[new_key] = v
+            return items
+            
+        return flatten_dict(self.config)

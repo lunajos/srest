@@ -56,6 +56,34 @@ def delete_config(key: str):
     config.save()
     click.echo(f"Deleted {key}")
 
+@config_group.command('list-api-versions')
+@click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
+              default=OutputFormat.BASIC.value, help='Output format')
+def list_api_versions(format: str):
+    """List all supported API versions from server.
+    
+    Queries the OpenAPI spec from the server to determine all supported
+    API versions (e.g., v0.0.40, v0.0.41, v0.0.42). The versions are
+    extracted from the API paths in the OpenAPI spec.
+    """
+    from ...client import get_client
+    
+    try:
+        client = get_client()
+        versions = client.diag.get_versions(all_versions=True)
+        
+        if not versions:
+            raise click.ClickException("No API versions detected")
+            
+        if format == OutputFormat.JSON.value:
+            click.echo(json.dumps({"versions": versions}, indent=2))
+        else:
+            click.echo("Supported API versions:")
+            for version in versions:
+                click.echo(f"  {version}")
+    except Exception as e:
+        raise click.ClickException(str(e))
+
 @config_group.command('detect-api-version')
 @click.option('--set/--no-set', default=True, help='Set detected version in config')
 def detect_api_version(set: bool):

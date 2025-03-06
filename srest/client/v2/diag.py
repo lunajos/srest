@@ -105,14 +105,15 @@ class DiagClient(BaseClient):
             return_curl=return_curl
         )
         
-    def _extract_latest_version(self, spec: Dict[str, Any]) -> str:
-        """Extract the latest API version from OpenAPI spec paths
+    def _extract_versions(self, spec: Dict[str, Any]) -> List[str]:
+        """Extract all API versions from OpenAPI spec paths
         
         Args:
             spec: OpenAPI specification dictionary
             
         Returns:
-            Latest API version (e.g., 'v0.0.42')
+            List of API versions (e.g., ['v0.0.40', 'v0.0.41', 'v0.0.42'])
+            sorted in ascending order
             
         Raises:
             SlurmError: If no API versions found in spec
@@ -129,16 +130,35 @@ class DiagClient(BaseClient):
                 message="No API versions found in OpenAPI spec"
             )
         
-        return max(versions)
+        return sorted(versions)
+        
+    def _extract_latest_version(self, spec: Dict[str, Any]) -> str:
+        """Extract the latest API version from OpenAPI spec paths
+        
+        Args:
+            spec: OpenAPI specification dictionary
+            
+        Returns:
+            Latest API version (e.g., 'v0.0.42')
+            
+        Raises:
+            SlurmError: If no API versions found in spec
+        """
+        return self._extract_versions(spec)[-1]  # Last version is latest
     
-    def get_versions(self, return_curl: bool = False) -> Union[str, Dict[str, Any]]:
-        """Get slurmrestd API version from OpenAPI spec
+    def get_versions(self, return_curl: bool = False, all_versions: bool = False) -> Union[str, List[str], Dict[str, Any]]:
+        """Get slurmrestd API version(s) from OpenAPI spec
+        
+        Args:
+            return_curl: If True, returns curl command string instead of making request
+            all_versions: If True, returns list of all supported versions instead of just latest
         
         Returns:
             If return_curl is True, returns curl command string
+            If all_versions is True, returns sorted list of versions (e.g., ['v0.0.40', 'v0.0.41', 'v0.0.42'])
             Otherwise returns the latest API version (e.g., 'v0.0.42')
         
-        The version is extracted from the API paths in the OpenAPI spec.
+        The version(s) are extracted from the API paths in the OpenAPI spec.
         """
         # OpenAPI spec is at the root URL /openapi/v3
         try:
@@ -169,7 +189,7 @@ class DiagClient(BaseClient):
         try:
             response = self.session.get(url, timeout=30)
             response.raise_for_status()
-            return self._extract_latest_version(response.json())
+            return self._extract_versions(response.json()) if all_versions else self._extract_latest_version(response.json())
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
                 # Try the older endpoint at /openapi.json
@@ -177,7 +197,7 @@ class DiagClient(BaseClient):
                     url = f"{base_url}/openapi.json"
                     response = self.session.get(url, timeout=30)
                     response.raise_for_status()
-                    return self._extract_latest_version(response.json())
+                    return self._extract_versions(response.json()) if all_versions else self._extract_latest_version(response.json())
                 except Exception as inner_e:
                     raise SlurmError(
                         error_code=None,

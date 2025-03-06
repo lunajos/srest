@@ -111,12 +111,16 @@ def submit_job(script: str, ignore_directives: bool, curl: bool = False, **kwarg
 @click.option('--state', help='Filter by state')
 @click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
               default=OutputFormat.BASIC.value, help='Output format')
-def list_jobs(user: str, partition: str, state: str, format: str):
+@click.option('--curl', is_flag=True, help='Output equivalent curl command')
+def list_jobs(user: str, partition: str, state: str, format: str, curl: bool = False):
     """List jobs"""
     client = get_client().job
     
     try:
-        result = client.get_jobs()
+        result = client.get_jobs(user=user, return_curl=curl)
+        if curl:
+            click.echo(result)
+            return
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(result, indent=2))
             return
@@ -173,30 +177,29 @@ def list_jobs(user: str, partition: str, state: str, format: str):
 @click.argument('job_id')
 @click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
               default=OutputFormat.JSON.value, help='Output format')
-def show_job(job_id: str, format: str):
+@click.option('--curl', is_flag=True, help='Output equivalent curl command')
+def show_job(job_id: str, format: str, curl: bool = False):
     """Show detailed information about a job"""
     client = get_client().job
     try:
-        result = client.get_job(job_id)
+        result = client.get_job(job_id, return_curl=curl)
+        if curl:
+            click.echo(result)
+            return
         if format == OutputFormat.JSON.value:
             if isinstance(result, dict):
-                # Handle dictionary response
-                if result.get('jobs') and result['jobs'][0]:
-                    job = result['jobs'][0]
-                else:
-                    job = result
+                click.echo(json.dumps(result, indent=2))
             else:
-                # Handle response object
-                job_dict = result.to_dict()
-                if not job_dict.get('jobs') or not job_dict['jobs'][0]:
-                    click.echo("Job not found")
-                    return
-                job = job_dict['jobs'][0]
+                click.echo(json.dumps(result.to_dict(), indent=2))
+            return
         else:
             # Basic format - show key details
             if isinstance(result, dict):
                 # Handle dictionary response
-                job = result
+                if not result.get('jobs') or not result['jobs'][0]:
+                    click.echo("Job not found")
+                    return
+                job = result['jobs'][0]
             else:
                 # Handle response object
                 job_dict = result.to_dict()
@@ -214,20 +217,20 @@ def show_job(job_id: str, format: str):
             click.echo(f"QOS: {job.get('qos', 'N/A')}")
             
             # Get job state
+            derived_exit_code = job.get('derived_exit_code', {})
             exit_code = job.get('exit_code', {})
-            if isinstance(exit_code, dict):
-                status = exit_code.get('status', [])
-                state = status[0] if status else 'N/A'
+            
+            if isinstance(derived_exit_code, dict) and derived_exit_code.get('status'):
+                state = derived_exit_code['status'][0]
+            elif isinstance(exit_code, dict) and exit_code.get('status'):
+                state = exit_code['status'][0]
             else:
-                state = str(exit_code)
+                state = 'N/A'
             click.echo(f"State: {state}")
             
             # Show reason if pending
             if state == 'PENDING':
                 click.echo(f"Reason: {job.get('state_reason', 'N/A')}")
-            
-            click.echo(f"Working Directory: {job.get('current_working_directory', 'N/A')}")
-            click.echo(f"Command: {job.get('command', 'N/A')}")
             
             # Resources
             click.echo("\nResources:")
@@ -244,6 +247,13 @@ def show_job(job_id: str, format: str):
             else:
                 cpu_count = str(cpus)
             click.echo(f"  CPUs per Task: {cpu_count}")
+            
+            # Command and paths
+            click.echo("\nPaths:")
+            click.echo(f"  Working Directory: {job.get('current_working_directory', 'N/A')}")
+            click.echo(f"  Command: {job.get('command', 'N/A')}")
+            click.echo(f"  Stdout: {job.get('standard_output', 'N/A')}")
+            click.echo(f"  Stderr: {job.get('standard_error', 'N/A')}")
             
             mem = job.get('memory_per_node', {})
             if isinstance(mem, dict):

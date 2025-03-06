@@ -153,7 +153,7 @@ class JobClient(BaseClient):
         """
         return self._make_request(
             method='GET',
-            endpoint=f'/jobs/{job_id}',
+            endpoint=f'/job/{job_id}',
             response_type=JobResponse,
             return_curl=return_curl
         )

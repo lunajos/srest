@@ -72,7 +72,13 @@ class SlurmRESTClient:
         response = self.diag.get_diagnostics(return_curl=return_curl)
         if isinstance(response, str):
             return {'curl_command': response}
-        return response.to_dict()
+        response_dict = response.to_dict()
+        if not response_dict:
+            return {}
+        return {
+            'statistics': response_dict.get('statistics', {}),
+            'meta': response_dict.get('meta', {})
+        }
 
     def list_licenses(self, return_curl: bool = False) -> Dict[str, Any]:
         """List licenses"""

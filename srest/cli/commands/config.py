@@ -59,7 +59,15 @@ def delete_config(key: str):
 @config_group.command('detect-api-version')
 @click.option('--set/--no-set', default=True, help='Set detected version in config')
 def detect_api_version(set: bool):
-    """Detect API version from server and optionally set it in config"""
+    """Detect API version from server and optionally set it in config.
+    
+    Queries the OpenAPI spec from the server to determine the latest supported
+    API version (e.g., v0.0.42). The version is extracted from the API paths
+    in the OpenAPI spec.
+    
+    If --set is specified (default), the detected version will be saved to
+    the config as slurm.api_version.
+    """
     from ...client import get_client
     
     try:

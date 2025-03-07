@@ -176,6 +176,6 @@ class JobClient(BaseClient):
             method='DELETE',
             endpoint=f'/slurm/v0.0.42/job/{job_id}',
             response_type=JobResponse,
-            params={'signal': 'SIGTERM'},
+            params={'signal': 'KILL', 'flags':'FULL_JOB'},
             return_curl=return_curl
         )

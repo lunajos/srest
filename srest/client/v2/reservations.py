@@ -106,7 +106,7 @@ class ReservationClient(BaseClient):
         """Create a new reservation"""
         return self._make_request(
             method='POST',
-            endpoint='slurm/v0.0.42/reservations',
+            endpoint='slurm/v0.0.42/reservation',
             json=reservation.to_dict(),
             response_type=ReservationResponse,
             return_curl=return_curl

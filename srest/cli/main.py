@@ -6,7 +6,7 @@ import urllib3
 from srest.cli.commands import (
     jobs_group, nodes_group, partitions_group, reservations_group,
     licenses_group, diag_group, accounts_group,
-    config_group, auth_group
+    config_group, auth_group, version_group
 )
 from srest.cli.commands.jobs_db import sacct_group
 
@@ -114,6 +114,7 @@ cli.add_command(accounts_group)
 
 cli.add_command(config_group)
 cli.add_command(auth_group)
+cli.add_command(version_group)
 cli.add_command(sacct_group)
 
 if __name__ == '__main__':

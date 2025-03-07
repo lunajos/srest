@@ -8,6 +8,7 @@ from .accounts import accounts_group
 
 from .config import config_group
 from .auth import auth_group
+from .version import version_group
 
 __all__ = [
     'jobs_group',
@@ -19,5 +20,6 @@ __all__ = [
     'accounts_group',
 
     'config_group',
-    'auth_group'
+    'auth_group',
+    'version_group'
 ]

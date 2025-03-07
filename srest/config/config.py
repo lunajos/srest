@@ -18,6 +18,7 @@ class Config:
             'slurm': {
                 'url': os.environ.get('SREST_URL', ''),
                 'api_version': 'v0.0.42',  # Default API version
+                'debug': False,  # Enable debug logging
             },
             'auth': {
                 'type': 'keycloak',

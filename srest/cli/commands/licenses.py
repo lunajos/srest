@@ -1,8 +1,11 @@
 import click
 import json
+import logging
 from ...client import get_client
 from ...parsers.submit import OutputFormat
 from ..utils import print_table
+
+logger = logging.getLogger(__name__)
 
 @click.group(name='licenses')
 def licenses_group():
@@ -15,6 +18,7 @@ def licenses_group():
 @click.option('--curl', is_flag=True, help='Output curl command with JWT and headers')
 def list_licenses(format: str, curl: bool = False):
     """List license information"""
+    logger.debug(f"Listing licenses (format={format}, curl={curl})")
     client = get_client()
     
     try:
@@ -25,10 +29,14 @@ def list_licenses(format: str, curl: bool = False):
             return
             
         result = client.list_licenses()
+        logger.debug(f"Got response: {json.dumps(result, indent=2)}")
+        
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(result, indent=2))
         else:
             licenses = result.get('licenses', [])
+            logger.debug(f"Found {len(licenses)} licenses")
+            
             if not licenses:
                 click.echo("No licenses found")
                 return

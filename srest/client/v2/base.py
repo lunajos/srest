@@ -4,6 +4,10 @@ import os
 from typing import Dict, Any, Optional, Union, Type, TypeVar
 from dataclasses import dataclass
 import requests
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 from urllib.parse import urljoin
 import urllib3
 from urllib3.exceptions import InsecureRequestWarning
@@ -31,6 +35,7 @@ class ClientConfig:
     token: Optional[str] = None
     bearer_token: Optional[str] = None
     verify_ssl: bool = True
+    debug: bool = False
 
 class BaseClient:
     """Base client with authentication and request handling"""
@@ -43,6 +48,11 @@ class BaseClient:
         # Initialize endpoints handler
         from ..endpoints import SlurmEndpoints
         self.endpoints = SlurmEndpoints(base_url=config.base_url, api_version=config.api_version)
+        
+        # Configure debug logging
+        if self.config.debug:
+            logging.basicConfig(level=logging.DEBUG)
+            logger.debug(f"Initialized client with config: {json.dumps(self.config.__dict__, indent=2)}")
         
     def _create_session(self) -> requests.Session:
         """Create and configure requests session"""
@@ -105,7 +115,12 @@ class BaseClient:
         endpoint = endpoint.lstrip('/')
         
         # Construct full URL ensuring no double slashes
-        return f"{base_api_url}/{endpoint}"
+        url = f"{base_api_url}/{endpoint}"
+        
+        if self.config.debug:
+            logger.debug(f"Constructed URL: {url}")
+            
+        return url
     
     def _make_request(
         self, 

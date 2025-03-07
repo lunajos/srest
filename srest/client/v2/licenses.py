@@ -23,7 +23,7 @@ class LicenseClient(BaseClient):
         """Get license information"""
         return self._make_request(
             method='GET',
-            endpoint='/licenses',
+            endpoint='/slurm/v0.0.42/licenses',
             response_type=LicenseResponse,
             return_curl=return_curl
         )

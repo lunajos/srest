@@ -13,6 +13,40 @@ The API supports three authentication methods:
 2. Token only (`X-SLURM-USER-TOKEN`)
 3. Bearer Authentication (JWT)
 
+### SSL Verification
+
+Both the Slurm REST API and Keycloak authentication server support SSL certificate verification:
+
+```python
+# Using the Python client
+from srest.client.v2.base import ClientConfig
+
+# For Slurm REST API
+config = ClientConfig(
+    base_url="https://slurm.example.com:6820",
+    verify_ssl=False  # Disable SSL verification for Slurm API
+)
+
+# For Keycloak authentication
+from srest.auth.keycloak import KeycloakAuth
+
+auth = KeycloakAuth(
+    server_url="https://keycloak.example.com",
+    realm="slurm",
+    client_id="slurm-rest",
+    verify_ssl=False  # Disable SSL verification for Keycloak
+)
+```
+
+Using the CLI:
+```bash
+# Configure SSL verification
+srest config set slurm.verify_ssl false  # For Slurm API
+srest config set auth.verify_ssl false   # For Keycloak
+```
+
+> **Warning**: Disabling SSL verification makes your connections vulnerable to man-in-the-middle attacks. Only use this in development/testing environments or when using self-signed certificates. For production use, properly configure SSL certificates.
+
 ## Base URL Structure
 
 ```

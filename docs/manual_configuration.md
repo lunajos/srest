@@ -46,15 +46,30 @@ Create or edit `~/.config/srest/config.json`:
         "url": "https://your-slurm-rest-api-url",
         "version": "v0.0.42",
         "verify_ssl": true
+    },
+    "auth": {
+        "server_url": "https://your-keycloak-server",
+        "realm": "slurm",
+        "client_id": "slurm-rest",
+        "verify_ssl": true
     }
 }
 ```
 
 ### Configuration Options
 
+Slurm REST API settings:
 - `slurm.url`: The base URL of your Slurm REST API
 - `slurm.version`: API version (default: v0.0.42)
-- `slurm.verify_ssl`: Whether to verify SSL certificates (default: true)
+- `slurm.verify_ssl`: Whether to verify SSL certificates for Slurm API connections (default: true)
+
+Keycloak authentication settings:
+- `auth.server_url`: The base URL of your Keycloak server
+- `auth.realm`: Keycloak realm name (default: slurm)
+- `auth.client_id`: Client ID for Keycloak authentication (default: slurm-rest)
+- `auth.verify_ssl`: Whether to verify SSL certificates for Keycloak connections (default: true)
+
+Note: SSL verification should only be disabled in development/testing environments or when using self-signed certificates. For production use, properly configure SSL certificates instead.
 
 ## Verifying Configuration
 

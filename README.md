@@ -189,6 +189,20 @@ To logout:
 srest auth logout
 ```
 
+### SSL Verification
+
+By default, both Keycloak and Slurm REST API connections verify SSL certificates. When using self-signed certificates or testing environments, you can disable SSL verification:
+
+```bash
+# Disable SSL verification for Keycloak authentication
+srest config set auth.verify_ssl false
+
+# Disable SSL verification for Slurm REST API
+srest config set slurm.verify_ssl false
+```
+
+Note: Disabling SSL verification makes your connections vulnerable to man-in-the-middle attacks. Only use this in development/testing environments or when you're using self-signed certificates. For production environments, properly configure SSL certificates instead.
+
 ## Configuration
 
 Configuration is stored in `~/.config/srest/config.yaml` and can be managed with the following commands:

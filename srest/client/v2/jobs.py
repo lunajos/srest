@@ -105,7 +105,7 @@ class JobClient(BaseClient):
             
         return self._make_request(
             method='POST',
-            endpoint='/job/submit',
+            endpoint='/slurm/v0.0.42/job/submit',
             response_type=JobSubmitResponse,
             json=payload,
             return_curl=return_curl
@@ -131,7 +131,7 @@ class JobClient(BaseClient):
             
         return self._make_request(
             method='GET',
-            endpoint='/jobs',
+            endpoint='/slurm/v0.0.42/jobs',
             response_type=JobResponse,
             params=params,
             return_curl=return_curl
@@ -153,7 +153,7 @@ class JobClient(BaseClient):
         """
         return self._make_request(
             method='GET',
-            endpoint=f'/job/{job_id}',
+            endpoint=f'/slurm/v0.0.42/job/{job_id}',
             response_type=JobResponse,
             return_curl=return_curl
         )
@@ -174,7 +174,7 @@ class JobClient(BaseClient):
         """
         return self._make_request(
             method='DELETE',
-            endpoint=f'/job/{job_id}',
+            endpoint=f'/slurm/v0.0.42/job/{job_id}',
             response_type=JobResponse,
             params={'signal': 'SIGTERM'},
             return_curl=return_curl

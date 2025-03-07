@@ -129,11 +129,17 @@ def get_client(username: str = None, token: str = None) -> SlurmRESTClient:
         token = auth_status.get_token()
         username = auth_status.get_username()
     
+    # Get API version from config
+    api_version = config.get('slurm.api_version')
+    if not api_version:
+        raise ValueError("API version not configured. Run 'srest config set slurm.api_version <version>'")
+
     # Create unified client
     config = ClientConfig(
         base_url=base_url,
         token=token,
-        username=username
+        username=username,
+        api_version=api_version
     )
     
     return SlurmRESTClient(

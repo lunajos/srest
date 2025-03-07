@@ -26,7 +26,7 @@ T = TypeVar('T', bound=SlurmResponse)
 class ClientConfig:
     """Client configuration"""
     base_url: str
-    api_version: str = 'v0.0.42'
+    api_version: str
     username: Optional[str] = None
     token: Optional[str] = None
     bearer_token: Optional[str] = None
@@ -39,6 +39,10 @@ class BaseClient:
         """Initialize client with configuration"""
         self.config = config
         self.session = self._create_session()
+        
+        # Initialize endpoints handler
+        from ..endpoints import SlurmEndpoints
+        self.endpoints = SlurmEndpoints(base_url=config.base_url, api_version=config.api_version)
         
     def _create_session(self) -> requests.Session:
         """Create and configure requests session"""
@@ -88,13 +92,20 @@ class BaseClient:
         return session
     
     def _get_url(self, endpoint: str) -> str:
-        """Get full URL for endpoint"""
-        # Normalize URL parts
-        base_url = self.config.base_url.rstrip('/')
+        """Get full URL for endpoint
+        
+        Args:
+            endpoint: API endpoint path (relative to version, e.g. 'jobs' or 'job/123')
+            
+        Returns:
+            Full URL including base URL and API version
+        """
+        # Use endpoints handler to construct URL
+        base_api_url = self.endpoints.base_api_url
         endpoint = endpoint.lstrip('/')
         
         # Construct full URL ensuring no double slashes
-        return f"{base_url}/{endpoint}"
+        return f"{base_api_url}/{endpoint}"
     
     def _make_request(
         self, 

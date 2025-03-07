@@ -88,7 +88,7 @@ class ReservationClient(BaseClient):
         """Get list of reservations"""
         return self._make_request(
             method='GET',
-            endpoint='slurm/v0.0.42/reservations',
+            endpoint='reservations',  # Endpoint paths are now relative to base API URL
             response_type=ReservationResponse,
             return_curl=return_curl
         )
@@ -97,7 +97,7 @@ class ReservationClient(BaseClient):
         """Get information about a specific reservation"""
         return self._make_request(
             method='GET',
-            endpoint=f'slurm/v0.0.42/reservation/{name}',
+            endpoint=f'reservation/{name}',  # Endpoint paths are now relative to base API URL
             response_type=ReservationResponse,
             return_curl=return_curl
         )
@@ -106,7 +106,7 @@ class ReservationClient(BaseClient):
         """Create a new reservation"""
         return self._make_request(
             method='POST',
-            endpoint='slurm/v0.0.42/reservation',
+            endpoint='reservation',  # Endpoint paths are now relative to base API URL
             json=reservation.to_dict(),
             response_type=ReservationResponse,
             return_curl=return_curl
@@ -116,7 +116,7 @@ class ReservationClient(BaseClient):
         """Delete a reservation"""
         return self._make_request(
             method='DELETE',
-            endpoint=f'slurm/v0.0.42/reservation/{name}',
+            endpoint=f'reservation/{name}',  # Endpoint paths are now relative to base API URL
             response_type=ReservationResponse,
             return_curl=return_curl
         )

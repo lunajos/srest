@@ -1,6 +1,6 @@
 """Configuration management"""
 import os
-import yaml
+import json
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -10,7 +10,7 @@ class Config:
     def __init__(self):
         """Initialize configuration"""
         self.config_dir = Path.home() / '.config' / 'srest'
-        self.config_file = self.config_dir / 'config.yaml'
+        self.config_file = self.config_dir / 'config.json'
         self.config_dir.mkdir(parents=True, exist_ok=True)
         
         # Default configuration
@@ -74,7 +74,7 @@ class Config:
             
         try:
             with open(self.config_file, 'r') as f:
-                config = yaml.safe_load(f) or {}
+                config = json.load(f) or {}
                 
             # Merge with defaults
             merged = self.defaults.copy()
@@ -87,7 +87,7 @@ class Config:
     def _save_config(self):
         """Save configuration to file"""
         with open(self.config_file, 'w') as f:
-            yaml.dump(self.config, f)
+            json.dump(self.config, f, indent=2)
     
     def _merge_dicts(self, dict1: Dict, dict2: Dict):
         """Recursively merge dictionaries"""

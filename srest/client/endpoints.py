@@ -6,7 +6,7 @@ class SlurmEndpoints:
     """Slurm REST API endpoint URLs following OpenAPI 3.0.3 specification"""
     
     base_url: str
-    api_version: str = 'v0.0.42'
+    api_version: str
     
     def __post_init__(self):
         """Post-initialization processing"""

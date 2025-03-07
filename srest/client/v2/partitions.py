@@ -73,7 +73,7 @@ class PartitionClient(BaseClient):
         """Get list of partitions"""
         return self._make_request(
             method='GET',
-            endpoint='/slurm/v0.0.42/partitions',
+            endpoint='partitions',  # Endpoint paths are now relative to base API URL
             response_type=PartitionResponse,
             return_curl=return_curl
         )
@@ -82,7 +82,7 @@ class PartitionClient(BaseClient):
         """Get information about a specific partition"""
         return self._make_request(
             method='GET',
-            endpoint=f'/slurm/v0.0.42/partition/{partition_name}',
+            endpoint=f'partition/{partition_name}',  # Endpoint paths are now relative to base API URL
             response_type=PartitionResponse,
             return_curl=return_curl
         )

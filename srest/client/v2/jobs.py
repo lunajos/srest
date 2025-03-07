@@ -105,7 +105,7 @@ class JobClient(BaseClient):
             
         return self._make_request(
             method='POST',
-            endpoint='/slurm/v0.0.42/job/submit',
+            endpoint='job/submit',  # Endpoint paths are now relative to base API URL
             response_type=JobSubmitResponse,
             json=payload,
             return_curl=return_curl
@@ -131,7 +131,7 @@ class JobClient(BaseClient):
             
         return self._make_request(
             method='GET',
-            endpoint='/slurm/v0.0.42/jobs',
+            endpoint='jobs',  # Endpoint paths are now relative to base API URL
             response_type=JobResponse,
             params=params,
             return_curl=return_curl
@@ -153,7 +153,7 @@ class JobClient(BaseClient):
         """
         return self._make_request(
             method='GET',
-            endpoint=f'/slurm/v0.0.42/job/{job_id}',
+            endpoint=f'job/{job_id}',  # Endpoint paths are now relative to base API URL
             response_type=JobResponse,
             return_curl=return_curl
         )
@@ -174,7 +174,7 @@ class JobClient(BaseClient):
         """
         return self._make_request(
             method='DELETE',
-            endpoint=f'/slurm/v0.0.42/job/{job_id}',
+            endpoint=f'job/{job_id}',  # Endpoint paths are now relative to base API URL
             response_type=JobResponse,
             params={'signal': 'KILL', 'flags':'FULL_JOB'},
             return_curl=return_curl

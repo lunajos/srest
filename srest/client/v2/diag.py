@@ -91,7 +91,7 @@ class DiagClient(BaseClient):
         """Get diagnostic information"""
         return self._make_request(
             method='GET',
-            endpoint='/slurm/v0.0.42/diag',
+            endpoint='diag',  # Endpoint paths are now relative to base API URL
             response_type=DiagResponse,
             return_curl=return_curl
         )
@@ -100,7 +100,7 @@ class DiagClient(BaseClient):
         """Ping the Slurm controller"""
         return self._make_request(
             method='GET',
-            endpoint='/slurm/v0.0.42/ping',
+            endpoint='ping',  # Endpoint paths are now relative to base API URL
             response_type=PingResponse,
             return_curl=return_curl
         )

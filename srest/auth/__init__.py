@@ -53,7 +53,8 @@ def login(username: str, password: str) -> Dict[str, Any]:
             server_url=server_url,
             realm=config.get('auth.realm', 'slurm-realm'),
             client_id=config.get('auth.client_id', 'slurm'),
-            client_secret=client_secret
+            client_secret=client_secret,
+            verify_ssl=config.get('auth.verify_ssl', True)
         )
         token = auth.login(username, password)
         token['expires_at'] = (datetime.now() + timedelta(seconds=token['expires_in'])).isoformat()

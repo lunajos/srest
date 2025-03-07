@@ -9,18 +9,33 @@ from pathlib import Path
 class KeycloakAuth:
     """Keycloak authentication handler"""
     
-    def __init__(self, server_url: str, realm: str, client_id: str, client_secret: Optional[str] = None):
-        """Initialize Keycloak client"""
+    def __init__(self, server_url: str, realm: str, client_id: str, client_secret: Optional[str] = None, verify_ssl: bool = True):
+        """Initialize Keycloak client
+        
+        Args:
+            server_url: Keycloak server URL
+            realm: Keycloak realm
+            client_id: Client ID
+            client_secret: Optional client secret
+            verify_ssl: Whether to verify SSL certificates
+        """
         self.server_url = server_url.rstrip('/')
         self.realm = realm
         self.client_id = client_id
         self.client_secret = client_secret
+        self.verify_ssl = verify_ssl
         self.token_url = f"{self.server_url}/realms/{realm}/protocol/openid-connect/token"
         self.config_dir = Path.home() / '.config' / 'srest'
         self.token_file = self.config_dir / 'token.json'
         
         # Ensure config directory exists
         self.config_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Disable urllib3 warnings if SSL verification is disabled
+        if not self.verify_ssl:
+            import urllib3
+            from urllib3.exceptions import InsecureRequestWarning
+            urllib3.disable_warnings(InsecureRequestWarning)
     
     def login(self, username: str, password: str) -> Dict:
         """Get token from Keycloak"""
@@ -86,7 +101,7 @@ class KeycloakAuth:
                 }
             
             # Get real token from Keycloak
-            response = requests.post(self.token_url, data=data)
+            response = requests.post(self.token_url, data=data, verify=self.verify_ssl)
             response.raise_for_status()
             return response.json()
             
@@ -125,7 +140,7 @@ class KeycloakAuth:
             data['client_secret'] = self.client_secret
         
         try:
-            response = requests.post(self.token_url, data=data)
+            response = requests.post(self.token_url, data=data, verify=self.verify_ssl)
             response.raise_for_status()
             token_data = response.json()
             

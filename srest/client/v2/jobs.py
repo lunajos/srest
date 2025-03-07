@@ -100,8 +100,8 @@ class JobClient(BaseClient):
         }
         
         # Debug log
-        print("Job submission payload:")
-        print(json.dumps(payload, indent=2))
+        #print("Job submission payload:")
+        #print(json.dumps(payload, indent=2))
             
         return self._make_request(
             method='POST',

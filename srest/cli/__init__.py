@@ -7,7 +7,6 @@ from .commands.nodes import nodes_group
 from .commands.partitions import partitions_group
 from .commands.diag import diag_group
 from .commands.licenses import licenses_group
-from .commands.jobs_db import sacct_group
 
 @click.group()
 def cli():
@@ -23,7 +22,7 @@ def init_cli():
     cli.add_command(partitions_group)
     cli.add_command(diag_group)
     cli.add_command(licenses_group)
-    cli.add_command(sacct_group)
+
     
     return cli
 

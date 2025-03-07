@@ -4,8 +4,6 @@ from .partitions import partitions_group
 from .reservations import reservations_group
 from .licenses import licenses_group
 from .diag import diag_group
-from .accounts import accounts_group
-
 from .config import config_group
 from .auth import auth_group
 from .version import version_group
@@ -17,8 +15,6 @@ __all__ = [
     'reservations_group',
     'licenses_group',
     'diag_group',
-    'accounts_group',
-
     'config_group',
     'auth_group',
     'version_group'

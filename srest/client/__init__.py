@@ -8,6 +8,7 @@ from .v2.nodes import NodeClient
 from .v2.partitions import PartitionClient
 from .v2.diag import DiagClient
 from .v2.licenses import LicenseClient
+from .v2.reservations import ReservationClient
 
 from .v2.db import DbClient
 
@@ -19,6 +20,7 @@ class SlurmRESTClient:
     partition: PartitionClient
     diag: DiagClient
     license: LicenseClient
+    reservation: ReservationClient
 
     db: DbClient
     
@@ -140,6 +142,7 @@ def get_client(username: str = None, token: str = None) -> SlurmRESTClient:
         partition=PartitionClient(config),
         diag=DiagClient(config),
         license=LicenseClient(config),
+        reservation=ReservationClient(config),
 
         db=DbClient(config)
     )
@@ -152,5 +155,6 @@ __all__ = [
     'PartitionClient',
     'DiagClient',
     'LicenseClient',
+    'ReservationClient',
     'DbClient'
 ]

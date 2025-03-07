@@ -12,11 +12,18 @@ def licenses_group():
 @licenses_group.command('list')
 @click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
               default=OutputFormat.BASIC.value, help='Output format')
-def list_licenses(format: str):
+@click.option('--curl', is_flag=True, help='Output curl command with JWT and headers')
+def list_licenses(format: str, curl: bool = False):
     """List license information"""
     client = get_client()
     
     try:
+        if curl:
+            curl_command = client.list_licenses(return_curl=True)
+            click.echo('# Run this command to list licenses using curl:')
+            click.echo(curl_command)
+            return
+            
         result = client.list_licenses()
         if format == OutputFormat.JSON.value:
             click.echo(json.dumps(result, indent=2))

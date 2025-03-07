@@ -6,6 +6,7 @@ import warnings
 import urllib3
 import requests
 from .endpoints import SlurmEndpoints
+from .v2.reservations import ReservationClient
 from ..config import Config
 from ..auth.keycloak import KeycloakAuth
 from ..auth.status import AuthStatus
@@ -65,6 +66,7 @@ class SlurmClient:
     """Client for interacting with Slurm REST API"""
     
     def __init__(self, base_url: str, token: str, api_version: str):
+        self._reservation_client = None
         """Initialize Slurm REST client with version support"""
         self.base_url = base_url
         self.token = token
@@ -85,6 +87,13 @@ class SlurmClient:
             'Accept': 'application/json'
         })
     
+    @property
+    def reservation(self) -> ReservationClient:
+        """Get reservation client"""
+        if self._reservation_client is None:
+            self._reservation_client = ReservationClient(self)
+        return self._reservation_client
+
     def _make_request(self, method: str, endpoint: str, return_curl: bool = False, **kwargs) -> Union[Dict[str, Any], str]:
         """Make HTTP request to Slurm REST API"""
         # Generate curl command if requested

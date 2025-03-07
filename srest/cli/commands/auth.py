@@ -49,7 +49,8 @@ def logout():
 @auth_group.command('token')
 @click.option('--format', type=click.Choice([f.value for f in OutputFormat]),
               default=OutputFormat.BASIC.value, help='Output format')
-def show_token(format: str):
+@click.option('--curl', is_flag=True, help='Output curl command with JWT and headers')
+def show_token(format: str, curl: bool = False):
     """Show current token information"""
     """Show current token information"""
     auth_status = AuthStatus()
@@ -59,6 +60,15 @@ def show_token(format: str):
         return
     
     token_info = get_token_info()
+    
+    if curl:
+        # Format curl command with current token
+        curl_command = f"curl -H 'Authorization: Bearer {token_info['token']}'" \
+                      f" -H 'Content-Type: application/json'" \
+                      f" -X GET {auth_status.api_url}/slurm/v0.0.42/token"
+        click.echo('# Run this command to get token info using curl:')
+        click.echo(curl_command)
+        return
     
     if format == OutputFormat.JSON.value:
         click.echo(token_info)

@@ -65,7 +65,7 @@ class NodeClient(BaseClient):
         """Get list of nodes"""
         return self._make_request(
             method='GET',
-            endpoint='/nodes',
+            endpoint='slurm/v0.0.42/nodes',
             response_type=NodeResponse,
             return_curl=return_curl
         )
@@ -74,7 +74,7 @@ class NodeClient(BaseClient):
         """Get information about a specific node"""
         return self._make_request(
             method='GET',
-            endpoint=f'/node/{node_name}',
+            endpoint=f'slurm/v0.0.42/node/{node_name}',
             response_type=NodeResponse,
             return_curl=return_curl
         )

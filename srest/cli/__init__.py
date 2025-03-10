@@ -9,21 +9,19 @@ from .commands.diag import diag_group
 from .commands.licenses import licenses_group
 
 @click.group()
+@click.version_option()
 def cli():
-    """Slurm REST API client"""
+    """Slurm REST API client for v0.0.42"""
     pass
 
-def init_cli():
-    """Initialize CLI with all commands"""
-    cli.add_command(auth_group)
-    cli.add_command(config_group)
-    cli.add_command(jobs_group)
-    cli.add_command(nodes_group)
-    cli.add_command(partitions_group)
-    cli.add_command(diag_group)
-    cli.add_command(licenses_group)
+# Register commands that match the Slurm REST API structure
+cli.add_command(auth_group)      # Authentication (JWT, token, user)
+cli.add_command(config_group)    # Configuration management
+cli.add_command(jobs_group)      # Job submission and control
+cli.add_command(nodes_group)     # Node information
+cli.add_command(partitions_group)  # Partition information
+cli.add_command(diag_group)      # Diagnostics
+cli.add_command(licenses_group)   # License information
 
-    
-    return cli
-
-__all__ = ['cli', 'init_cli']
+if __name__ == '__main__':
+    cli()

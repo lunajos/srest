@@ -4,9 +4,9 @@ import os
 from typing import Dict, Any, cast, Union
 from ...client import get_client
 from ...parsers.submit import SlurmDirectiveParser, OutputFormat
-from swagger_client.models import V0036JobSubmissionResponse, V0036JobsResponse
+from ...client.v2.models import JobSubmitResponse, JobResponse
 
-def format_job_submission(result: V0036JobSubmissionResponse, output_format: OutputFormat) -> str:
+def format_job_submission(result: JobSubmitResponse, output_format: OutputFormat) -> str:
     """Format job submission result"""
     if output_format == OutputFormat.PARSABLE:
         return str(result.job_id)

@@ -1,4 +1,20 @@
 from setuptools import setup, find_packages
+import os
+
+# Create scripts directory if it doesn't exist
+os.makedirs('scripts', exist_ok=True)
+
+# Create the script file
+with open('scripts/srest', 'w') as f:
+    f.write('''#!/usr/bin/env python3
+from srest.cli import cli
+
+if __name__ == '__main__':
+    cli()
+''')
+
+# Make the script executable
+os.chmod('scripts/srest', 0o755)
 
 # Read requirements from requirements.txt if it exists
 try:
@@ -22,7 +38,7 @@ except FileNotFoundError:
     long_description = "A comprehensive Slurm REST API client"
 
 setup(
-    name="slurmrest",
+    name="srest",
     version="0.1.0",
     packages=find_packages(),
     include_package_data=True,
@@ -40,9 +56,9 @@ setup(
         ]
     },
     entry_points={
-        "console_scripts": [
-            "srest=srest.cli.main:cli",
-        ],
+        'console_scripts': [
+            'srest = srest.cli:cli'
+        ]
     },
     author="Jose Luna",
     author_email="jose@lunajos.com",
